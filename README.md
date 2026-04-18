@@ -22,8 +22,8 @@ Use the following credentials to explore the different organizational perspectiv
 
 | Username | Organization | Role | Description |
 | :--- | :--- | :--- | :--- |
-| `admin` | JICSOC Enterprise | Admin | Full control over JICSOC models and workflows. |
-| `requestor` | JICSOC Enterprise | Requestor | Can only view and submit their own JICSOC records. |
+| `admin` | JICSAW Enterprise | Admin | Full control over JICSAW models and workflows. |
+| `requestor` | JICSAW Enterprise | Requestor | Can only view and submit their own JICSAW records. |
 | `seed_admin` | Seed Enterprise | Admin | Completely isolated Seed organization administrator. |
 
 ---
@@ -35,7 +35,7 @@ CRATR is built with a focus on maximum data isolation and ultimate flexibility.
 ### 1. Multi-Tenancy (Schema-per-Tenant)
 CRATR utilizes a **dedicated PostgreSQL schema** for every organization. This ensures total data isolation—even within the same database instance.
 - **`public` schema**: Global tenant registry and cross-tenant user management.
-- **`jicsoc`, `seed`, etc.**: Isolated schemas for organization-specific data, entities, and roles.
+- **`jicsaw`, `seed`, etc.**: Isolated schemas for organization-specific data, entities, and roles.
 
 ### 2. Dynamic Data Engine (JSONB)
 Admins can "create tables and fields" without database migrations. CRATR uses a metadata-driven architecture with PostgreSQL **JSONB** columns to store dynamic fields while maintaining relational integrity for core attributes.
@@ -90,7 +90,6 @@ cratr/
 
 - **JWT Authentication**: Industry-standard secure token management.
 - **Isolated Sessions**: Authentication context includes the specific organization schema, automatically enforced via Axios interceptors and FastAPI dependencies.
-- **DoD Compliance Ready**: Designed with strict data handling and isolation principles required for enterprise government and military environments.
 
 ---
 

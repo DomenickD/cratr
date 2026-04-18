@@ -57,12 +57,12 @@ def seed_organization(db, name, schema):
         db.add(requestor_role)
     db.commit()
 
-    # 2. Create Users (Standard names for JICSOC)
+    # 2. Create Users (Standard names for JICSAW)
     users_to_create = []
-    if schema == "jicsoc":
+    if schema == "jicsaw":
         users_to_create = [
-            {"username": "admin", "full_name": "JICSOC Admin", "role_id": admin_role.id},
-            {"username": "requestor", "full_name": "JICSOC Requestor", "role_id": requestor_role.id},
+            {"username": "admin", "full_name": "JICSAW Admin", "role_id": admin_role.id},
+            {"username": "requestor", "full_name": "JICSAW Requestor", "role_id": requestor_role.id},
         ]
     else:
         users_to_create = [
@@ -126,7 +126,7 @@ def seed():
     db = SessionLocal()
     try:
         seed_organization(db, "Seed Enterprise", "seed")
-        seed_organization(db, "JICSOC Enterprise", "jicsoc")
+        seed_organization(db, "JICSAW Enterprise", "jicsaw")
         print("✅ Seeding successful!")
     finally:
         db.close()

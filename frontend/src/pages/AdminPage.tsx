@@ -207,7 +207,7 @@ export default function AdminPage() {
                                 value={entityName}
                                 disabled={!!selectedEntityId}
                                 onChange={(e) => setEntityName(e.target.value)}
-                                placeholder="e.g. jicsoc_rfi"
+                                placeholder="e.g. jicsaw_rfi"
                                 className="w-full rounded-2xl border-slate-200 bg-slate-50 p-4 font-bold text-slate-900 disabled:opacity-50 border"
                             />
                         </div>
