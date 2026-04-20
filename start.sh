@@ -31,9 +31,9 @@ docker exec cratr_backend python seed.py
 
 echo ""
 echo "✨ Cratr is now running!"
-echo "   Frontend:     http://localhost"
-echo "   Backend API:  http://localhost/api/"
-echo "   API Docs:     http://localhost/docs"
+echo "   Frontend:     http://localhost:8080"
+echo "   Backend API:  http://localhost:8080/api/"
+echo "   API Docs:     http://localhost:8080/docs"
 echo ""
 echo "Demo Accounts (password: 'password'):"
 echo "   enterprise_admin  →  Enterprise Administrator (global access)"

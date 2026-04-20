@@ -12,7 +12,8 @@ import {
   Building2,
   Crown,
   Layers,
-  ChevronRight
+  ChevronRight,
+  Terminal
 } from 'lucide-react';
 
 const Sidebar = () => {
@@ -29,6 +30,10 @@ const Sidebar = () => {
     { icon: CalendarIcon, label: 'Calendar', path: '/app/calendar' },
     { icon: BarChart3, label: 'Metrics', path: '/app/metrics' },
     { icon: Settings, label: 'Studio', path: '/app/admin' },
+  ];
+
+  const enterpriseItems = [
+    { icon: Terminal, label: 'Dev Console', path: '/app/dev' },
   ];
 
   const isActive = (path: string) =>
@@ -94,6 +99,32 @@ const Sidebar = () => {
             </li>
           ))}
         </ul>
+
+        {isEnterpriseAdmin && (
+          <div className="mt-4">
+            <p className="text-[10px] font-black uppercase tracking-widest text-amber-600/70 px-3 mb-2">Enterprise</p>
+            <ul className="space-y-1">
+              {enterpriseItems.map((item) => (
+                <li key={item.path}>
+                  <Link
+                    to={item.path}
+                    className={`flex items-center justify-between p-3 rounded-xl transition-all text-sm font-bold group ${
+                      isActive(item.path)
+                        ? 'bg-amber-500/20 text-amber-300 shadow-lg shadow-amber-500/10 border border-amber-500/20'
+                        : 'text-amber-600/70 hover:bg-amber-500/10 hover:text-amber-400'
+                    }`}
+                  >
+                    <div className="flex items-center gap-3">
+                      <item.icon size={18} />
+                      <span>{item.label}</span>
+                    </div>
+                    {isActive(item.path) && <ChevronRight size={14} className="opacity-60" />}
+                  </Link>
+                </li>
+              ))}
+            </ul>
+          </div>
+        )}
       </nav>
 
       {/* User footer */}

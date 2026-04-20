@@ -89,6 +89,28 @@ def login(username: str, db: Session = Depends(get_db)):
     }
 
 
+@router.get("/users")
+def list_all_users(db: Session = Depends(get_db)):
+    users = db.query(UserModel).all()
+    orgs = {o.id: o for o in db.query(TenantModel).all()}
+    result = []
+    for user in users:
+        org = orgs.get(user.organization_id)
+        result.append({
+            "id": user.id,
+            "username": user.username,
+            "full_name": user.full_name,
+            "email": user.email,
+            "role": user.role or "viewer",
+            "is_active": user.is_active,
+            "created_at": user.created_at,
+            "organization_id": user.organization_id,
+            "organization_name": org.name if org else None,
+            "organization_schema": org.schema_name if org else None,
+        })
+    return result
+
+
 @router.get("/organizations", response_model=List[Tenant])
 def list_organizations(db: Session = Depends(get_db)):
     return db.query(TenantModel).filter(TenantModel.is_active == True).all()

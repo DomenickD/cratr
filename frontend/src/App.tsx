@@ -11,6 +11,7 @@ import Dashboard from './pages/Dashboard';
 import WorkflowsPage from './pages/WorkflowsPage';
 import LoginPage from './pages/LoginPage';
 import LandingPage from './pages/LandingPage';
+import DevPage from './pages/DevPage';
 import { AuthProvider, useAuth } from './hooks/useAuth';
 
 const queryClient = new QueryClient();
@@ -49,6 +50,7 @@ function App() {
               <Route path="calendar" element={<CalendarPage />} />
               <Route path="metrics" element={<MetricsPage />} />
               <Route path="admin" element={<AdminPage />} />
+              <Route path="dev" element={<DevPage />} />
             </Route>
           </Routes>
         </BrowserRouter>
