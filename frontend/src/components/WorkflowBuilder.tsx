@@ -1,9 +1,9 @@
 import { useState, useCallback, useEffect } from 'react';
-import { 
-  ReactFlow, 
-  Background, 
-  Controls, 
-  applyEdgeChanges, 
+import {
+  ReactFlow,
+  Background,
+  Controls,
+  applyEdgeChanges,
   applyNodeChanges,
   addEdge,
   Panel,
@@ -14,14 +14,13 @@ import '@xyflow/react/dist/style.css';
 import { Save, Plus, Settings2, X, Eye, EyeOff } from 'lucide-react';
 import axios from 'axios';
 
-// --- Custom Node Component ---
 const StatusNode = ({ data }: any) => {
   return (
-    <div className="bg-white border-2 border-indigo-500 rounded-xl p-4 shadow-lg min-w-[180px]">
+    <div className="bg-slate-800 border-2 border-indigo-500 rounded-xl p-4 shadow-lg min-w-[180px]">
       <Handle type="target" position={Position.Top} className="w-3 h-3 bg-indigo-500" />
       <div className="flex items-center gap-2 mb-2">
         <div className="w-2 h-2 rounded-full bg-indigo-500" />
-        <span className="font-bold text-slate-900">{data.label}</span>
+        <span className="font-bold text-white">{data.label}</span>
       </div>
       <div className="text-[10px] text-slate-400 uppercase font-bold tracking-wider">
         {data.fieldConfigs?.filter((f: any) => f.visible).length || 0} Visible Fields
@@ -41,7 +40,6 @@ export default function WorkflowBuilder({ entity, onSave }: { entity: any, onSav
   const [selectedNode, setSelectedNode] = useState<any>(null);
   const [newStatusName, setNewStatusName] = useState('');
 
-  // Initialize from entity config
   useEffect(() => {
     if (entity?.workflow_config) {
       setNodes(entity.workflow_config.nodes || []);
@@ -66,7 +64,7 @@ export default function WorkflowBuilder({ entity, onSave }: { entity: any, onSav
     const newNode = {
       id: `node-${status}`,
       type: 'status',
-      data: { 
+      data: {
         label: status,
         fieldConfigs: entity.fields.map((f: any) => ({
           field_id: f.id,
@@ -83,9 +81,9 @@ export default function WorkflowBuilder({ entity, onSave }: { entity: any, onSav
 
   const createNewStatus = async () => {
     if (!newStatusName) return;
-    
+
     try {
-        const statusField = entity?.fields?.find((f: any) => 
+        const statusField = entity?.fields?.find((f: any) =>
             f.name.toLowerCase() === 'status' || f.display_name.toLowerCase() === 'status'
         );
 
@@ -95,14 +93,14 @@ export default function WorkflowBuilder({ entity, onSave }: { entity: any, onSav
         }
 
         const newOptions = [...(statusField.configuration?.options || []), newStatusName];
-        
+
         await axios.put(`/api/entities/${entity.id}/fields/${statusField.id}`, {
             configuration: { ...statusField.configuration, options: newOptions }
         });
 
         addNode(newStatusName);
         setNewStatusName('');
-        onSave(); // Refresh entity data
+        onSave();
     } catch (error) {
         console.error(error);
         alert('Error adding new status option');
@@ -154,14 +152,14 @@ export default function WorkflowBuilder({ entity, onSave }: { entity: any, onSav
     }
   };
 
-  const statusField = entity?.fields?.find((f: any) => 
+  const statusField = entity?.fields?.find((f: any) =>
     f.name.toLowerCase() === 'status' || f.display_name.toLowerCase() === 'status'
   ) || entity?.fields?.find((f: any) => f.field_type === 'select');
-  
+
   const statusOptions = statusField?.configuration?.options || [];
 
   return (
-    <div className="h-[700px] w-full bg-slate-50 rounded-2xl border border-slate-200 overflow-hidden relative text-slate-900">
+    <div className="h-[700px] w-full bg-slate-900 rounded-2xl border border-slate-700 overflow-hidden relative text-white">
       <ReactFlow
         nodes={nodes}
         edges={edges}
@@ -172,45 +170,45 @@ export default function WorkflowBuilder({ entity, onSave }: { entity: any, onSav
         nodeTypes={nodeTypes}
         fitView
       >
-        <Background />
+        <Background color="#334155" />
         <Controls />
-        <Panel position="top-right" className="bg-white p-2 rounded-xl shadow-lg border border-slate-200 flex gap-2">
-            <button 
+        <Panel position="top-right" className="bg-slate-800 p-2 rounded-xl shadow-lg border border-slate-700 flex gap-2">
+            <button
                 onClick={saveWorkflow}
                 className="bg-indigo-600 text-white p-2 rounded-lg hover:bg-indigo-700 flex items-center gap-2 text-sm font-bold"
             >
                 <Save size={16} /> Save Workflow
             </button>
         </Panel>
-        
-        <Panel position="top-left" className="bg-white p-4 rounded-xl shadow-lg border border-slate-200 max-w-[200px]">
+
+        <Panel position="top-left" className="bg-slate-800 p-4 rounded-xl shadow-lg border border-slate-700 max-w-[200px]">
             <h4 className="text-xs font-black uppercase text-slate-400 mb-3 tracking-widest">Process Steps</h4>
-            
+
             <div className="mb-4 flex flex-col gap-2">
-                <input 
-                    type="text" 
-                    placeholder="New step name..." 
+                <input
+                    type="text"
+                    placeholder="New step name..."
                     value={newStatusName}
                     onChange={(e) => setNewStatusName(e.target.value)}
-                    className="text-[10px] p-2 border rounded bg-slate-50 outline-none focus:border-indigo-500 font-bold"
+                    className="text-[10px] p-2 border border-slate-600 rounded bg-slate-700 text-white outline-none focus:border-indigo-500 font-bold"
                 />
-                <button 
+                <button
                     onClick={createNewStatus}
-                    className="bg-slate-900 text-white p-2 rounded text-[10px] font-black hover:bg-slate-800 transition-colors"
+                    className="bg-slate-700 text-white p-2 rounded text-[10px] font-black hover:bg-slate-600 transition-colors"
                 >
                     ADD NEW STEP
                 </button>
             </div>
 
-            <hr className="mb-4 border-slate-100" />
+            <hr className="mb-4 border-slate-700" />
 
             <div className="space-y-2">
                 {statusOptions.map((opt: string) => (
-                    <button 
+                    <button
                         key={opt}
                         onClick={() => addNode(opt)}
                         disabled={nodes.some(n => n.data.label === opt)}
-                        className="w-full text-left p-2 rounded bg-slate-50 border border-slate-100 text-xs font-bold hover:bg-indigo-50 hover:border-indigo-200 disabled:opacity-50 flex items-center justify-between group"
+                        className="w-full text-left p-2 rounded bg-slate-700 border border-slate-600 text-xs font-bold hover:bg-indigo-900/30 hover:border-indigo-700 disabled:opacity-50 flex items-center justify-between group"
                     >
                         {opt}
                         <Plus size={12} className="opacity-0 group-hover:opacity-100" />
@@ -221,43 +219,43 @@ export default function WorkflowBuilder({ entity, onSave }: { entity: any, onSav
       </ReactFlow>
 
       {selectedNode && (
-        <div className="absolute right-0 top-0 bottom-0 w-80 bg-white border-l border-slate-200 shadow-2xl p-6 z-50 overflow-y-auto">
+        <div className="absolute right-0 top-0 bottom-0 w-80 bg-slate-800 border-l border-slate-700 shadow-2xl p-6 z-50 overflow-y-auto">
             <div className="flex justify-between items-center mb-6">
                 <h3 className="text-lg font-bold flex items-center gap-2">
-                    <Settings2 size={20} className="text-indigo-600" />
+                    <Settings2 size={20} className="text-indigo-400" />
                     Step Settings
                 </h3>
-                <button onClick={() => setSelectedNode(null)} className="text-slate-400 hover:text-slate-600">
+                <button onClick={() => setSelectedNode(null)} className="text-slate-400 hover:text-slate-200">
                     <X size={20} />
                 </button>
             </div>
 
-            <div className="mb-6 p-4 bg-indigo-50 rounded-2xl border border-indigo-100">
+            <div className="mb-6 p-4 bg-indigo-900/30 rounded-2xl border border-indigo-800">
                 <p className="text-xs font-black text-indigo-400 uppercase mb-1">Current Step</p>
-                <p className="text-xl font-black text-indigo-900">{selectedNode.data.label}</p>
+                <p className="text-xl font-black text-indigo-300">{selectedNode.data.label}</p>
             </div>
 
             <h4 className="text-xs font-black text-slate-400 uppercase mb-4 tracking-widest">Field Permissions</h4>
             <div className="space-y-3">
                 {selectedNode.data.fieldConfigs?.map((fc: any) => (
-                    <div key={fc.field_id} className="p-3 bg-slate-50 rounded-xl border border-slate-100">
+                    <div key={fc.field_id} className="p-3 bg-slate-700 rounded-xl border border-slate-600">
                         <div className="flex items-center justify-between mb-2">
-                            <span className="font-bold text-slate-700 text-sm">{fc.display_name}</span>
-                            <button 
+                            <span className="font-bold text-slate-200 text-sm">{fc.display_name}</span>
+                            <button
                                 onClick={() => updateFieldConfig(fc.field_id, 'visible', !fc.visible)}
-                                className={fc.visible ? 'text-indigo-600' : 'text-slate-300'}
+                                className={fc.visible ? 'text-indigo-400' : 'text-slate-500'}
                             >
                                 {fc.visible ? <Eye size={18} /> : <EyeOff size={18} />}
                             </button>
                         </div>
                         <div className="flex items-center gap-2">
-                            <input 
-                                type="checkbox" 
+                            <input
+                                type="checkbox"
                                 checked={fc.required}
                                 onChange={(e) => updateFieldConfig(fc.field_id, 'required', e.target.checked)}
-                                className="h-3 w-3 rounded border-slate-300 text-indigo-600"
+                                className="h-3 w-3 rounded border-slate-500 text-indigo-600"
                             />
-                            <span className="text-[10px] font-bold text-slate-500 uppercase">Required at this step</span>
+                            <span className="text-[10px] font-bold text-slate-400 uppercase">Required at this step</span>
                         </div>
                     </div>
                 ))}

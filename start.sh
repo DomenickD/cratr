@@ -19,26 +19,25 @@ until docker exec cratr_db pg_isready -U postgres >/dev/null 2>&1; do
   printf "."
   sleep 1
 done
+echo ""
 echo "✅ Postgres is ready."
 
-# 4) Run Initial Migrations & Seed
+# 4) Run Migrations & Seed
 echo "📦 Initializing Database..."
-# Ensure versions directory exists
 docker exec cratr_backend mkdir -p /app/migrations/versions
-
-# We generate a fresh migration if none exists
-docker exec cratr_backend alembic revision --autogenerate -m "auto_init" || echo "Revision already exists or failed."
+docker exec cratr_backend alembic revision --autogenerate -m "auto_init" || echo "Revision already exists or failed, continuing..."
 docker exec cratr_backend alembic upgrade head
 docker exec cratr_backend python seed.py
 
-echo "✨ Cratr is now running!"
-echo "Frontend: http://localhost:8080"
-echo "Backend API: http://localhost:8081"
-echo "Backend Docs: http://localhost:8081/docs"
 echo ""
-echo "Seeded Users (Password: password):"
-echo " - admin (JICSAW)"
-echo " - requestor (JICSAW)"
-echo " - seed_admin (Seed)"
+echo "✨ Cratr is now running!"
+echo "   Frontend:     http://localhost"
+echo "   Backend API:  http://localhost/api/"
+echo "   API Docs:     http://localhost/docs"
+echo ""
+echo "Demo Accounts (password: 'password'):"
+echo "   enterprise_admin  →  Enterprise Administrator (global access)"
+echo "   jicsaw_admin      →  JICSAW Organization Admin"
+echo "   puzzle_admin      →  PUZZLE Organization Admin"
 echo ""
 echo "Thank you for using Cratr! - Dobby"

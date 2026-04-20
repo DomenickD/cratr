@@ -17,7 +17,7 @@ const queryClient = new QueryClient();
 
 const ProtectedRoute = ({ children }: { children: React.ReactNode }) => {
   const { user } = useAuth();
-  if (!user) return <Navigate to="/login" replace />;
+  if (!user) return <Navigate to="/" replace />;
   return <>{children}</>;
 };
 
@@ -27,6 +27,12 @@ const RootRedirect = () => {
   return <LandingPage />;
 };
 
+const LoginRedirect = () => {
+  const { user } = useAuth();
+  if (user) return <Navigate to="/app" replace />;
+  return <LoginPage />;
+};
+
 function App() {
   return (
     <QueryClientProvider client={queryClient}>
@@ -34,7 +40,7 @@ function App() {
         <BrowserRouter>
           <Routes>
             <Route path="/" element={<RootRedirect />} />
-            <Route path="/login" element={<LoginPage />} />
+            <Route path="/login" element={<LoginRedirect />} />
             <Route path="/app" element={<ProtectedRoute><RootLayout /></ProtectedRoute>}>
               <Route index element={<Dashboard />} />
               <Route path="forms" element={<FormsPage />} />

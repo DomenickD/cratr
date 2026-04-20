@@ -1,93 +1,231 @@
-import React from 'react';
-import { Link } from 'react-router-dom';
-import { Rocket, ShieldCheck, Database, GitBranch, ArrowRight, CheckCircle2 } from 'lucide-react';
+import React, { useState } from 'react';
+import { useNavigate } from 'react-router-dom';
+import axios from 'axios';
+import { useAuth } from '../hooks/useAuth';
+import {
+  Rocket,
+  ShieldCheck,
+  Database,
+  GitBranch,
+  ArrowRight,
+  Building2,
+  Crown,
+  ChevronRight,
+  Layers
+} from 'lucide-react';
+
+const DEMO_ROLES = [
+  {
+    username: 'enterprise_admin',
+    label: 'Enterprise Admin',
+    sublabel: 'Global system access',
+    icon: Crown,
+    color: 'from-amber-500 to-orange-600',
+    border: 'border-amber-500/30 hover:border-amber-400/60',
+    bg: 'bg-amber-500/10 hover:bg-amber-500/20',
+    iconColor: 'text-amber-400',
+  },
+  {
+    username: 'jicsaw_admin',
+    label: 'JICSAW Admin',
+    sublabel: 'JICSAW organization',
+    icon: Building2,
+    color: 'from-indigo-500 to-violet-600',
+    border: 'border-indigo-500/30 hover:border-indigo-400/60',
+    bg: 'bg-indigo-500/10 hover:bg-indigo-500/20',
+    iconColor: 'text-indigo-400',
+  },
+  {
+    username: 'puzzle_admin',
+    label: 'PUZZLE Admin',
+    sublabel: 'PUZZLE organization',
+    icon: Layers,
+    color: 'from-emerald-500 to-teal-600',
+    border: 'border-emerald-500/30 hover:border-emerald-400/60',
+    bg: 'bg-emerald-500/10 hover:bg-emerald-500/20',
+    iconColor: 'text-emerald-400',
+  },
+];
+
+const FEATURES = [
+  { icon: Database, label: 'Schema-per-Tenant', desc: 'Total data isolation per organization' },
+  { icon: GitBranch, label: 'Visual Workflows', desc: 'Map status lifecycles with a drag-and-drop canvas' },
+  { icon: ShieldCheck, label: 'Role-Based Access', desc: 'Granular permissions at the field level' },
+];
 
 export default function LandingPage() {
+  const { login } = useAuth();
+  const navigate = useNavigate();
+  const [manualUsername, setManualUsername] = useState('');
+  const [loading, setLoading] = useState<string | null>(null);
+  const [error, setError] = useState('');
+
+  const handleLogin = async (username: string) => {
+    setLoading(username);
+    setError('');
+    try {
+      const res = await axios.post(`/api/auth/login?username=${username}`);
+      const { user: userData, organization: orgData, access_token } = res.data;
+      login(userData, orgData, access_token);
+      navigate('/app');
+    } catch {
+      setError(`Login failed for "${username}". Run seed.py first.`);
+    } finally {
+      setLoading(null);
+    }
+  };
+
+  const handleManualLogin = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!manualUsername.trim()) return;
+    await handleLogin(manualUsername.trim());
+  };
+
   return (
-    <div className="min-h-screen bg-slate-50 overflow-x-hidden text-slate-900">
-      {/* Navigation */}
-      <nav className="fixed top-0 left-0 right-0 bg-white/80 backdrop-blur-md z-50 border-b border-slate-200">
-        <div className="max-w-7xl mx-auto px-6 h-20 flex items-center justify-between">
-            <div className="text-2xl font-black tracking-tighter flex items-center gap-2">
-                <div className="w-8 h-8 bg-indigo-600 rounded-lg flex items-center justify-center text-white">
-                    <Rocket size={18} />
-                </div>
-                CRATR<span className="text-indigo-600">.</span>
-            </div>
-            <div className="flex items-center gap-4">
-                <Link to="/login" className="text-sm font-bold text-slate-600 hover:text-slate-900 transition-colors">Sign In</Link>
-                <Link to="/login" className="bg-slate-900 text-white px-6 py-2.5 rounded-xl text-sm font-bold hover:bg-slate-800 transition-all shadow-lg">Get Started</Link>
-            </div>
-        </div>
-      </nav>
+    <div className="min-h-screen bg-slate-950 text-white overflow-x-hidden">
+      {/* Ambient glow */}
+      <div className="fixed top-[-20%] left-[-10%] w-[50%] h-[50%] bg-indigo-900/20 blur-[160px] rounded-full pointer-events-none" />
+      <div className="fixed bottom-[-20%] right-[-10%] w-[40%] h-[40%] bg-violet-900/15 blur-[140px] rounded-full pointer-events-none" />
 
-      {/* Hero Section */}
-      <section className="pt-40 pb-20 px-6">
-        <div className="max-w-7xl mx-auto grid grid-cols-1 lg:grid-cols-2 gap-16 items-center">
-            <div className="space-y-8">
-                <div className="inline-flex items-center gap-2 bg-indigo-50 border border-indigo-100 px-4 py-2 rounded-full text-indigo-600 text-xs font-black uppercase tracking-widest">
-                    Next-Gen Enterprise OS
-                </div>
-                <h1 className="text-7xl font-black text-slate-900 tracking-tight leading-[0.95]">
-                    Build dynamic <br />
-                    <span className="text-indigo-600">workflows</span> at scale.
-                </h1>
-                <p className="text-xl text-slate-500 max-w-lg leading-relaxed font-medium">
-                    The only enterprise platform that combines schema-isolated multi-tenancy with a visual, no-code workflow engine. Design, track, and optimize your entire organization in one place.
-                </p>
-                <div className="flex flex-col sm:flex-row gap-4 pt-4">
-                    <Link to="/login" className="bg-indigo-600 text-white px-10 py-5 rounded-[1.5rem] text-lg font-black hover:bg-indigo-700 transition-all shadow-xl flex items-center justify-center gap-3 active:scale-95">
-                        Start Building Now <ArrowRight size={20} />
-                    </Link>
-                    <button className="bg-white border border-slate-200 text-slate-700 px-10 py-5 rounded-[1.5rem] text-lg font-black hover:bg-slate-50 transition-all flex items-center justify-center">
-                        Request Demo
-                    </button>
-                </div>
+      <div className="relative z-10 min-h-screen flex flex-col lg:flex-row">
+
+        {/* ── Left: Branding ─────────────────────────────── */}
+        <div className="flex-1 flex flex-col justify-between p-12 lg:p-16">
+          {/* Logo */}
+          <div className="flex items-center gap-3">
+            <div className="w-10 h-10 bg-indigo-600 rounded-xl flex items-center justify-center shadow-lg shadow-indigo-500/30">
+              <Rocket size={20} />
             </div>
-            
-            <div className="relative">
-                <div className="bg-slate-900 rounded-[3rem] p-4 shadow-2xl transform lg:rotate-3 hover:rotate-0 transition-transform duration-700 overflow-hidden border-[8px] border-white">
-                    <div className="bg-slate-800 rounded-[2rem] h-[500px] w-full p-8 flex flex-col gap-6 overflow-hidden">
-                        <div className="flex gap-2">
-                            <div className="w-3 h-3 rounded-full bg-red-400" />
-                            <div className="w-3 h-3 rounded-full bg-amber-400" />
-                            <div className="w-3 h-3 rounded-full bg-emerald-400" />
-                        </div>
-                        <div className="space-y-4">
-                            <div className="h-8 bg-slate-700 rounded-lg w-1/3" />
-                            <div className="grid grid-cols-3 gap-4">
-                                <div className="h-40 bg-indigo-500/20 rounded-2xl border border-indigo-500/30 flex items-center justify-center text-indigo-400 font-black text-xs text-center p-2">NODE A</div>
-                                <div className="h-40 bg-slate-700 rounded-2xl flex items-center justify-center text-slate-500 font-black tracking-widest text-xl">{'>>'}</div>
-                                <div className="h-40 bg-violet-500/20 rounded-2xl border border-violet-500/30 flex items-center justify-center text-violet-400 font-black text-xs text-center p-2">NODE B</div>
-                            </div>
-                            <div className="h-32 bg-slate-700 rounded-2xl opacity-50" />
-                        </div>
+            <span className="text-2xl font-black tracking-tighter">
+              CRATR<span className="text-indigo-400">.</span>
+            </span>
+          </div>
+
+          {/* Hero copy */}
+          <div className="max-w-lg space-y-8 py-16">
+            <div className="inline-flex items-center gap-2 bg-indigo-500/10 border border-indigo-500/20 px-4 py-1.5 rounded-full text-indigo-300 text-xs font-black uppercase tracking-widest">
+              Enterprise Operations Platform
+            </div>
+
+            <h1 className="text-6xl xl:text-7xl font-black tracking-tight leading-[0.92]">
+              Build dynamic<br />
+              <span className="text-indigo-400">workflows</span><br />
+              at scale.
+            </h1>
+
+            <p className="text-lg text-slate-400 leading-relaxed">
+              Schema-isolated multi-tenancy meets a no-code workflow engine.
+              Design, track, and optimize your entire enterprise in one place.
+            </p>
+
+            {/* Feature bullets */}
+            <div className="space-y-4 pt-2">
+              {FEATURES.map(({ icon: Icon, label, desc }) => (
+                <div key={label} className="flex items-start gap-4">
+                  <div className="w-8 h-8 rounded-lg bg-slate-800 border border-slate-700 flex items-center justify-center flex-shrink-0 mt-0.5">
+                    <Icon size={15} className="text-indigo-400" />
+                  </div>
+                  <div>
+                    <p className="font-bold text-slate-200 text-sm">{label}</p>
+                    <p className="text-slate-500 text-xs mt-0.5">{desc}</p>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+
+          <p className="text-slate-600 text-xs">
+            &copy; 2026 CRATR Enterprise Solutions
+          </p>
+        </div>
+
+        {/* ── Right: Login panel ─────────────────────────── */}
+        <div className="w-full lg:w-[480px] flex items-center justify-center p-8 lg:p-12">
+          <div className="w-full max-w-sm space-y-6">
+
+            {/* Demo access header */}
+            <div>
+              <h2 className="text-2xl font-black text-white">Quick Access</h2>
+              <p className="text-slate-400 text-sm mt-1">Click a role to log in instantly with demo credentials.</p>
+            </div>
+
+            {/* Demo role buttons */}
+            <div className="space-y-3">
+              {DEMO_ROLES.map((role) => {
+                const Icon = role.icon;
+                const isLoading = loading === role.username;
+                return (
+                  <button
+                    key={role.username}
+                    onClick={() => handleLogin(role.username)}
+                    disabled={loading !== null}
+                    className={`w-full flex items-center gap-4 p-4 rounded-2xl border transition-all duration-200 ${role.bg} ${role.border} disabled:opacity-50 disabled:cursor-not-allowed group`}
+                  >
+                    <div className={`w-10 h-10 rounded-xl bg-gradient-to-br ${role.color} flex items-center justify-center flex-shrink-0 shadow-lg`}>
+                      <Icon size={18} className="text-white" />
                     </div>
-                </div>
+                    <div className="flex-1 text-left">
+                      <p className="font-bold text-white text-sm">{role.label}</p>
+                      <p className="text-xs text-slate-400">{role.sublabel}</p>
+                    </div>
+                    {isLoading ? (
+                      <div className="w-4 h-4 border-2 border-slate-500 border-t-white rounded-full animate-spin" />
+                    ) : (
+                      <ChevronRight size={16} className="text-slate-500 group-hover:text-slate-300 transition-colors" />
+                    )}
+                  </button>
+                );
+              })}
             </div>
-        </div>
-      </section>
 
-      {/* Feature Grid */}
-      <section className="py-20 px-6 bg-white">
-        <div className="max-w-7xl mx-auto text-center mb-20 space-y-4">
-            <h2 className="text-4xl font-black text-slate-900 tracking-tight">Everything you need to <span className="text-indigo-600 underline decoration-8 decoration-indigo-100">operate</span>.</h2>
-            <p className="text-slate-500 font-medium max-w-2xl mx-auto">Built from the ground up for teams that demand total isolation without sacrificing flexibility.</p>
+            {/* Divider */}
+            <div className="flex items-center gap-3">
+              <div className="flex-1 h-px bg-slate-800" />
+              <span className="text-xs text-slate-500 font-medium">or sign in manually</span>
+              <div className="flex-1 h-px bg-slate-800" />
+            </div>
+
+            {/* Manual login */}
+            <form onSubmit={handleManualLogin} className="space-y-3">
+              <input
+                type="text"
+                value={manualUsername}
+                onChange={(e) => setManualUsername(e.target.value)}
+                placeholder="Enter username..."
+                className="w-full bg-slate-900 border border-slate-700 rounded-2xl p-4 text-white placeholder-slate-500 focus:border-indigo-500 outline-none font-bold transition-colors"
+              />
+              <button
+                type="submit"
+                disabled={loading !== null || !manualUsername.trim()}
+                className="w-full bg-indigo-600 hover:bg-indigo-500 disabled:opacity-50 disabled:cursor-not-allowed text-white font-black py-4 rounded-2xl shadow-lg shadow-indigo-500/20 transition-all active:scale-95 flex items-center justify-center gap-2"
+              >
+                {loading === manualUsername ? (
+                  <div className="w-4 h-4 border-2 border-indigo-300 border-t-white rounded-full animate-spin" />
+                ) : (
+                  <>Access Workspace <ArrowRight size={16} /></>
+                )}
+              </button>
+            </form>
+
+            {error && (
+              <p className="text-red-400 text-xs text-center font-bold bg-red-900/20 border border-red-800/30 rounded-xl px-4 py-3">
+                {error}
+              </p>
+            )}
+
+            {/* Register org link */}
+            <p className="text-center text-slate-500 text-xs">
+              New organization?{' '}
+              <button
+                onClick={() => navigate('/login')}
+                className="text-indigo-400 font-bold hover:underline"
+              >
+                Register here
+              </button>
+            </p>
+          </div>
         </div>
-        <div className="max-w-7xl mx-auto grid grid-cols-1 md:grid-cols-3 gap-8 text-slate-900">
-            {[
-                { title: 'Schema-per-Tenant', desc: 'Maximum data isolation with dedicated PostgreSQL schemas for every client.' },
-                { title: 'Visual Workflow Builder', desc: 'Map your status lifecycle visually and control field-level permissions.' },
-                { title: 'Dynamic Analytics', desc: 'Real-time metrics and operational insights generated from your custom entities.' }
-            ].map((f, i) => (
-                <div key={i} className="p-10 rounded-[2.5rem] bg-slate-50 border border-slate-100 hover:border-indigo-200 transition-all group">
-                    <CheckCircle2 className="text-indigo-600 mb-6 group-hover:scale-110 transition-transform" size={32} />
-                    <h3 className="text-xl font-black mb-4">{f.title}</h3>
-                    <p className="text-slate-500 font-medium leading-relaxed">{f.desc}</p>
-                </div>
-            ))}
-        </div>
-      </section>
+      </div>
     </div>
   );
 }

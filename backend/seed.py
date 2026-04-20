@@ -3,7 +3,6 @@ import sys
 from sqlalchemy import create_engine, text
 from sqlalchemy.orm import sessionmaker
 
-# Add src to path
 sys.path.append(os.path.join(os.getcwd(), "src"))
 
 from src.db.database import DATABASE_URL, Base
@@ -16,26 +15,49 @@ from src.utils.auth import get_password_hash
 engine = create_engine(DATABASE_URL)
 SessionLocal = sessionmaker(bind=engine)
 
+
+def seed_enterprise_admin(db):
+    print("--- Seeding Enterprise Admin ---")
+    admin = db.query(User).filter(User.username == "enterprise_admin").first()
+    if not admin:
+        admin = User(
+            username="enterprise_admin",
+            full_name="Enterprise Administrator",
+            email="enterprise_admin@cratr.io",
+            hashed_password=get_password_hash("password"),
+            role="enterprise_admin",
+            organization_id=None
+        )
+        db.add(admin)
+        db.commit()
+        print("  Created enterprise_admin user")
+    else:
+        print("  enterprise_admin already exists")
+
+
 def seed_organization(db, name, schema):
     print(f"--- Seeding Organization: {name} ({schema}) ---")
+
+    # Create tenant record in public schema
     org = db.query(Tenant).filter(Tenant.schema_name == schema).first()
     if not org:
         org = Tenant(name=name, schema_name=schema)
         db.add(org)
         db.commit()
         db.refresh(org)
-    
+
+    # Create the Postgres schema
     db.execute(text(f"CREATE SCHEMA IF NOT EXISTS {schema}"))
     db.commit()
 
-    # Switch to Org Schema
+    # Create tables in org schema
     db.execute(text(f"SET search_path TO {schema}, public"))
-    
-    # 1. Create Roles
-    admin_role = db.query(Role).filter(Role.name == "Admin").first()
-    if not admin_role:
-        admin_role = Role(
-            name="Admin",
+
+    # 1. Roles
+    org_admin_role = db.query(Role).filter(Role.name == "Org Admin").first()
+    if not org_admin_role:
+        org_admin_role = Role(
+            name="Org Admin",
             can_manage_entities=True,
             can_manage_workflows=True,
             can_manage_users=True,
@@ -45,8 +67,8 @@ def seed_organization(db, name, schema):
             can_edit_all_records=True,
             can_delete_records=True
         )
-        db.add(admin_role)
-    
+        db.add(org_admin_role)
+
     requestor_role = db.query(Role).filter(Role.name == "Requestor").first()
     if not requestor_role:
         requestor_role = Role(
@@ -57,45 +79,37 @@ def seed_organization(db, name, schema):
         db.add(requestor_role)
     db.commit()
 
-    # 2. Create Users (Standard names for JICSAW)
-    users_to_create = []
-    if schema == "jicsaw":
-        users_to_create = [
-            {"username": "admin", "full_name": "JICSAW Admin", "role_id": admin_role.id},
-            {"username": "requestor", "full_name": "JICSAW Requestor", "role_id": requestor_role.id},
-        ]
-    else:
-        users_to_create = [
-            {"username": f"{schema}_admin", "full_name": f"{name} Admin", "role_id": admin_role.id},
-        ]
-
+    # 2. Org Admin user
+    admin_username = f"{schema}_admin"
     db.execute(text("SET search_path TO public"))
-    for u in users_to_create:
-        db_user = db.query(User).filter(User.username == u["username"]).first()
-        if not db_user:
-            new_user = User(
-                username=u["username"],
-                full_name=u["full_name"],
-                email=f"{u['username']}@{schema}.gov",
-                hashed_password=get_password_hash("password"),
-                organization_id=org.id
-            )
-            db.add(new_user)
-            db.commit()
-            db.refresh(new_user)
-            
-            db.execute(text(f"SET search_path TO {schema}, public"))
-            db.add(UserRole(user_id=new_user.id, role_id=u["role_id"]))
-            db.commit()
-            db.execute(text("SET search_path TO public"))
+    db_user = db.query(User).filter(User.username == admin_username).first()
+    if not db_user:
+        new_user = User(
+            username=admin_username,
+            full_name=f"{name} Admin",
+            email=f"{admin_username}@{schema}.cratr.io",
+            hashed_password=get_password_hash("password"),
+            role="org_admin",
+            organization_id=org.id
+        )
+        db.add(new_user)
+        db.commit()
+        db.refresh(new_user)
 
-    # 3. Create RFI Tracker
+        db.execute(text(f"SET search_path TO {schema}, public"))
+        db.add(UserRole(user_id=new_user.id, role_id=org_admin_role.id))
+        db.commit()
+        db.execute(text("SET search_path TO public"))
+        print(f"  Created {admin_username} user")
+    else:
+        print(f"  {admin_username} already exists")
+
+    # 3. Seed a default RFI Tracker in this org's schema
     db.execute(text(f"SET search_path TO {schema}, public"))
-    tracker_name = "rfi_tracker"
-    rfi = db.query(EntityDefinition).filter(EntityDefinition.name == tracker_name).first()
+    rfi = db.query(EntityDefinition).filter(EntityDefinition.name == "rfi_tracker").first()
     if not rfi:
         rfi = EntityDefinition(
-            name=tracker_name,
+            name="rfi_tracker",
             display_name="RFI Tracker",
             description=f"Standard RFI lifecycle for {name}",
             workflow_config={
@@ -121,15 +135,28 @@ def seed_organization(db, name, schema):
             FieldDefinition(entity_definition_id=rfi.id, name="date", display_name="Date", field_type="date", default_value="@today"),
         ])
         db.commit()
+        print(f"  Created RFI Tracker for {name}")
+    else:
+        print(f"  RFI Tracker already exists for {name}")
+
+    db.execute(text("SET search_path TO public"))
+
 
 def seed():
+    Base.metadata.create_all(bind=engine)
     db = SessionLocal()
     try:
-        seed_organization(db, "Seed Enterprise", "seed")
-        seed_organization(db, "JICSAW Enterprise", "jicsaw")
-        print("✅ Seeding successful!")
+        seed_enterprise_admin(db)
+        seed_organization(db, "JICSAW", "jicsaw")
+        seed_organization(db, "PUZZLE", "puzzle")
+        print("\n✅ Seeding complete!")
+        print("   enterprise_admin  → Enterprise Administrator")
+        print("   jicsaw_admin      → JICSAW Org Admin")
+        print("   puzzle_admin      → PUZZLE Org Admin")
+        print("   (all passwords: 'password')")
     finally:
         db.close()
+
 
 if __name__ == "__main__":
     seed()

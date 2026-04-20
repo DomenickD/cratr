@@ -9,8 +9,6 @@ services:
       POSTGRES_PASSWORD: postgres_password
     volumes:
       - postgres_data:/var/lib/postgresql/data
-    ports:
-      - "5432:5432"
 
   backend:
     build: ./backend
@@ -20,8 +18,6 @@ services:
       - DATABASE_URL=postgresql://postgres:postgres_password@db:5432/cratr
     depends_on:
       - db
-    ports:
-      - "8081:8000"
 
   frontend:
     build: ./frontend
@@ -29,8 +25,17 @@ services:
     restart: always
     depends_on:
       - backend
+
+  proxy:
+    build: ./containers/proxy
+    container_name: cratr_proxy
+    restart: always
     ports:
-      - "8080:80"
+      - "80:80"
+      - "5432:5432"
+    depends_on:
+      - backend
+      - frontend
 
 volumes:
   postgres_data:

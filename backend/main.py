@@ -9,6 +9,8 @@ from src.utils.tenant_context import get_tenant_db
 from src.routes.dynamic_data import router as dynamic_router
 from src.routes.auth import router as auth_router
 
+Base.metadata.create_all(bind=engine)
+
 app = FastAPI(title="Cratr Enterprise API")
 
 app.include_router(auth_router)

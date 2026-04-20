@@ -1,96 +1,128 @@
-import { Link, Outlet } from 'react-router-dom';
-import axios from 'axios';
+import { Link, Outlet, useLocation } from 'react-router-dom';
 import { useAuth } from '../hooks/useAuth';
-import { 
-  LayoutDashboard, 
-  Settings, 
-  FileText, 
-  GitBranch, 
-  Calendar as CalendarIcon, 
-  Layout as Kanban, 
+import {
+  LayoutDashboard,
+  Settings,
+  FileText,
+  GitBranch,
+  Calendar as CalendarIcon,
+  Layout as Kanban,
   BarChart3,
   LogOut,
-  RefreshCcw,
-  Building2
+  Building2,
+  Crown,
+  Layers,
+  ChevronRight
 } from 'lucide-react';
 
 const Sidebar = () => {
-  const { user, organization, logout, login } = useAuth();
-  
-  const switchUser = async (role: string) => {
-    try {
-        const username = role.toLowerCase();
-        const res = await axios.post(`/api/auth/login?username=${username}`);
-        const { user: userData, organization: orgData, access_token } = res.data;
-        login(userData, orgData, access_token);
-    } catch (err) {
-        alert('Failed to switch user. Ensure users are seeded.');
-    }
-  };
+  const { user, organization, logout } = useAuth();
+  const location = useLocation();
+
+  const isEnterpriseAdmin = user?.role === 'enterprise_admin';
 
   const menuItems = [
     { icon: LayoutDashboard, label: 'Dashboard', path: '/app' },
-    { icon: FileText, label: 'Forms', path: '/app/forms' },
+    { icon: FileText, label: 'Submit Request', path: '/app/forms' },
     { icon: GitBranch, label: 'Workflows', path: '/app/workflows' },
     { icon: Kanban, label: 'Kanban', path: '/app/kanban' },
     { icon: CalendarIcon, label: 'Calendar', path: '/app/calendar' },
     { icon: BarChart3, label: 'Metrics', path: '/app/metrics' },
-    { icon: Settings, label: 'Admin', path: '/app/admin' },
+    { icon: Settings, label: 'Studio', path: '/app/admin' },
   ];
 
+  const isActive = (path: string) =>
+    path === '/app' ? location.pathname === '/app' : location.pathname.startsWith(path);
+
   return (
-    <div className="w-64 bg-slate-900 text-white h-screen fixed left-0 top-0 flex flex-col z-50">
-      <div className="p-6 text-2xl font-black border-b border-slate-800 tracking-tighter">
-        CRATR<span className="text-indigo-500">.</span>
+    <div className="w-64 bg-slate-900 text-white h-screen fixed left-0 top-0 flex flex-col z-50 border-r border-slate-800">
+      {/* Logo */}
+      <div className="p-6 border-b border-slate-800">
+        <div className="text-2xl font-black tracking-tighter flex items-center gap-2">
+          <div className="w-7 h-7 bg-indigo-600 rounded-lg flex items-center justify-center text-sm shadow shadow-indigo-500/30">
+            C
+          </div>
+          CRATR<span className="text-indigo-400">.</span>
+        </div>
       </div>
-      <nav className="flex-1 p-4">
-        <ul className="space-y-2">
+
+      {/* Org / Role badge */}
+      <div className="px-4 pt-4">
+        {isEnterpriseAdmin ? (
+          <div className="flex items-center gap-2.5 p-2.5 bg-amber-500/10 border border-amber-500/20 rounded-xl">
+            <Crown size={14} className="text-amber-400 flex-shrink-0" />
+            <div className="min-w-0">
+              <p className="text-[10px] font-black uppercase tracking-widest text-amber-400/70">Access Level</p>
+              <p className="text-xs font-black text-amber-300 truncate">Enterprise Global</p>
+            </div>
+          </div>
+        ) : (
+          <div className="flex items-center gap-2.5 p-2.5 bg-slate-800/50 border border-slate-700 rounded-xl">
+            {organization?.name?.toUpperCase().includes('PUZZLE') ? (
+              <Layers size={14} className="text-emerald-400 flex-shrink-0" />
+            ) : (
+              <Building2 size={14} className="text-indigo-400 flex-shrink-0" />
+            )}
+            <div className="min-w-0">
+              <p className="text-[10px] font-black uppercase tracking-widest text-slate-500">Organization</p>
+              <p className="text-xs font-black text-slate-200 truncate">{organization?.name || 'Public'}</p>
+            </div>
+          </div>
+        )}
+      </div>
+
+      {/* Nav */}
+      <nav className="flex-1 p-4 mt-2">
+        <p className="text-[10px] font-black uppercase tracking-widest text-slate-600 px-3 mb-2">Navigation</p>
+        <ul className="space-y-1">
           {menuItems.map((item) => (
             <li key={item.path}>
               <Link
                 to={item.path}
-                className="flex items-center space-x-3 p-3 rounded-2xl hover:bg-slate-800 transition-all font-bold text-sm text-slate-400 hover:text-white"
+                className={`flex items-center justify-between p-3 rounded-xl transition-all text-sm font-bold group ${
+                  isActive(item.path)
+                    ? 'bg-indigo-600 text-white shadow-lg shadow-indigo-500/20'
+                    : 'text-slate-400 hover:bg-slate-800 hover:text-white'
+                }`}
               >
-                <item.icon size={20} />
-                <span>{item.label}</span>
+                <div className="flex items-center gap-3">
+                  <item.icon size={18} />
+                  <span>{item.label}</span>
+                </div>
+                {isActive(item.path) && <ChevronRight size={14} className="opacity-60" />}
               </Link>
             </li>
           ))}
         </ul>
       </nav>
-      
+
+      {/* User footer */}
       <div className="p-4 border-t border-slate-800">
-        <div className="flex items-center justify-between p-2 bg-slate-800/50 rounded-xl border border-slate-700 mb-4 shadow-inner">
-            <div className="flex items-center gap-2">
-                <Building2 size={14} className="text-indigo-400" />
-                <span className="text-[10px] font-black uppercase tracking-widest text-slate-300 truncate max-w-[100px]">
-                    {organization?.name || 'Public'}
-                </span>
+        <div className="flex items-center justify-between p-2 rounded-xl">
+          <div className="flex items-center gap-3 min-w-0">
+            <div className={`w-8 h-8 rounded-full flex items-center justify-center font-black text-xs uppercase flex-shrink-0 ${
+              isEnterpriseAdmin
+                ? 'bg-amber-500 text-white shadow-lg shadow-amber-500/30'
+                : 'bg-indigo-600 text-white shadow-lg shadow-indigo-500/20'
+            }`}>
+              {user?.username?.[0] || 'A'}
             </div>
-            <button className="text-slate-500 hover:text-white transition-colors">
-                <RefreshCcw size={12} />
-            </button>
-        </div>
-
-        <div className="flex items-center justify-between p-2">
-          <div className="flex items-center space-x-3 group relative">
-            <div className="w-8 h-8 bg-indigo-600 rounded-full flex items-center justify-center font-bold text-xs shadow-lg shadow-indigo-500/20 uppercase cursor-pointer">
-                {user?.username?.[0] || 'A'}
-            </div>
-            
-            <div className="absolute bottom-full left-0 mb-2 w-48 bg-slate-800 border border-slate-700 rounded-xl p-2 hidden group-hover:block shadow-2xl z-[60]">
-                <p className="text-[10px] font-black text-slate-500 uppercase px-2 mb-2">Switch Identity</p>
-                <button onClick={() => switchUser('Admin')} className="w-full text-left p-2 hover:bg-slate-700 rounded-lg text-xs font-bold transition-colors">Admin User</button>
-                <button onClick={() => switchUser('Requestor')} className="w-full text-left p-2 hover:bg-slate-700 rounded-lg text-xs font-bold transition-colors">Requestor User</button>
-                <button onClick={() => switchUser('Manager')} className="w-full text-left p-2 hover:bg-slate-700 rounded-lg text-xs font-bold transition-colors">Manager User</button>
-            </div>
-
-            <div className="text-sm">
-                <p className="font-bold text-slate-100 truncate max-w-[100px]">{user?.full_name || user?.username || 'Admin'}</p>
-                <p className="text-slate-500 text-[10px] font-bold uppercase tracking-tighter">System Access</p>
+            <div className="min-w-0">
+              <p className="font-bold text-slate-100 text-sm truncate">
+                {user?.full_name || user?.username || 'Admin'}
+              </p>
+              <p className={`text-[10px] font-black uppercase tracking-tighter ${
+                isEnterpriseAdmin ? 'text-amber-400' : 'text-indigo-400'
+              }`}>
+                {isEnterpriseAdmin ? 'Enterprise Admin' : (user?.role || 'Org Admin')}
+              </p>
             </div>
           </div>
-          <button onClick={logout} className="text-slate-500 hover:text-red-400 transition-colors p-1">
+          <button
+            onClick={logout}
+            title="Sign out"
+            className="text-slate-500 hover:text-red-400 transition-colors p-1 flex-shrink-0"
+          >
             <LogOut size={16} />
           </button>
         </div>
@@ -101,7 +133,7 @@ const Sidebar = () => {
 
 const RootLayout = () => {
   return (
-    <div className="min-h-screen bg-slate-50">
+    <div className="min-h-screen bg-slate-950">
       <Sidebar />
       <main className="pl-64 p-8">
         <div className="max-w-7xl mx-auto">

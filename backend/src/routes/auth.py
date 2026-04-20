@@ -1,4 +1,4 @@
-from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.orm import Session
 from sqlalchemy import text
 from typing import List
@@ -14,27 +14,42 @@ from src.utils.auth import verify_password, get_password_hash, create_access_tok
 
 router = APIRouter(prefix="/auth", tags=["Authentication"])
 
+ENTERPRISE_ADMIN_PERMISSIONS = {
+    "can_manage_entities": True,
+    "can_manage_workflows": True,
+    "can_manage_users": True,
+    "can_manage_roles": True,
+    "can_create_records": True,
+    "can_view_all_records": True,
+    "can_edit_all_records": True,
+    "can_delete_records": True,
+    "is_enterprise_admin": True,
+}
+
+
 @router.post("/login")
 def login(username: str, db: Session = Depends(get_db)):
     user = db.query(UserModel).filter(UserModel.username == username).first()
     if not user:
         raise HTTPException(status_code=404, detail="User not found")
-    
+
     org = None
     permissions = {}
-    role_name = "viewer"
+    role_name = user.role or "viewer"
 
-    if user.organization_id:
+    # Enterprise admin: global access, no org lookup needed
+    if user.role == "enterprise_admin":
+        permissions = ENTERPRISE_ADMIN_PERMISSIONS
+        role_name = "enterprise_admin"
+    elif user.organization_id:
         org = db.query(TenantModel).filter(TenantModel.id == user.organization_id).first()
         if org:
-            # Fetch Role and Permissions from Tenant Schema
             db.execute(text(f"SET search_path TO {org.schema_name}, public"))
             user_role = db.query(UserRole).filter(UserRole.user_id == user.id).first()
             if user_role:
                 role = db.query(Role).filter(Role.id == user_role.role_id).first()
                 if role:
                     role_name = role.name
-                    # Map permission grid to dict
                     permissions = {
                         "can_manage_entities": role.can_manage_entities,
                         "can_manage_workflows": role.can_manage_workflows,
@@ -44,19 +59,21 @@ def login(username: str, db: Session = Depends(get_db)):
                         "can_view_all_records": role.can_view_all_records,
                         "can_edit_all_records": role.can_edit_all_records,
                         "can_delete_records": role.can_delete_records,
+                        "is_enterprise_admin": False,
                     }
+            db.execute(text("SET search_path TO public"))
 
     access_token_expires = timedelta(minutes=ACCESS_TOKEN_EXPIRE_MINUTES)
     access_token = create_access_token(
         data={
-            "sub": user.username, 
-            "org": org.schema_name if org else "public", 
+            "sub": user.username,
+            "org": org.schema_name if org else "public",
             "role": role_name,
             "permissions": permissions
         },
         expires_delta=access_token_expires
     )
-    
+
     return {
         "user": {
             "id": user.id,
@@ -71,9 +88,11 @@ def login(username: str, db: Session = Depends(get_db)):
         "token_type": "bearer"
     }
 
+
 @router.get("/organizations", response_model=List[Tenant])
 def list_organizations(db: Session = Depends(get_db)):
     return db.query(TenantModel).filter(TenantModel.is_active == True).all()
+
 
 @router.post("/register-org", response_model=Tenant)
 def register_organization(org: TenantCreate, db: Session = Depends(get_db)):
