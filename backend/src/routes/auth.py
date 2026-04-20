@@ -2,7 +2,6 @@ from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.orm import Session
 from sqlalchemy import text
 from typing import List
-from datetime import timedelta
 
 from src.db.database import get_db
 from src.models.user import User as UserModel
@@ -10,7 +9,7 @@ from src.models.tenant import Tenant as TenantModel
 from src.models.permissions import Role, UserRole
 from src.schemas.user import User, UserCreate
 from src.schemas.tenant import Tenant, TenantCreate
-from src.utils.auth import verify_password, get_password_hash, create_access_token, ACCESS_TOKEN_EXPIRE_MINUTES
+from src.utils.auth import get_token, require_enterprise_admin
 
 router = APIRouter(prefix="/auth", tags=["Authentication"])
 
@@ -63,16 +62,7 @@ def login(username: str, db: Session = Depends(get_db)):
                     }
             db.execute(text("SET search_path TO public"))
 
-    access_token_expires = timedelta(minutes=ACCESS_TOKEN_EXPIRE_MINUTES)
-    access_token = create_access_token(
-        data={
-            "sub": user.username,
-            "org": org.schema_name if org else "public",
-            "role": role_name,
-            "permissions": permissions
-        },
-        expires_delta=access_token_expires
-    )
+    access_token = get_token(user.id)
 
     return {
         "user": {
@@ -90,7 +80,10 @@ def login(username: str, db: Session = Depends(get_db)):
 
 
 @router.get("/users")
-def list_all_users(db: Session = Depends(get_db)):
+def list_all_users(
+    db: Session = Depends(get_db),
+    _: object = Depends(require_enterprise_admin),
+):
     users = db.query(UserModel).all()
     orgs = {o.id: o for o in db.query(TenantModel).all()}
     result = []

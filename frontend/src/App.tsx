@@ -22,6 +22,13 @@ const ProtectedRoute = ({ children }: { children: React.ReactNode }) => {
   return <>{children}</>;
 };
 
+const EnterpriseRoute = ({ children }: { children: React.ReactNode }) => {
+  const { user } = useAuth();
+  if (!user) return <Navigate to="/" replace />;
+  if (user.role !== 'enterprise_admin') return <Navigate to="/app" replace />;
+  return <>{children}</>;
+};
+
 const RootRedirect = () => {
   const { user } = useAuth();
   if (user) return <Navigate to="/app" replace />;
@@ -50,7 +57,7 @@ function App() {
               <Route path="calendar" element={<CalendarPage />} />
               <Route path="metrics" element={<MetricsPage />} />
               <Route path="admin" element={<AdminPage />} />
-              <Route path="dev" element={<DevPage />} />
+              <Route path="dev" element={<EnterpriseRoute><DevPage /></EnterpriseRoute>} />
             </Route>
           </Routes>
         </BrowserRouter>
