@@ -12,6 +12,7 @@ import WorkflowsPage from './pages/WorkflowsPage';
 import LoginPage from './pages/LoginPage';
 import LandingPage from './pages/LandingPage';
 import DevPage from './pages/DevPage';
+import OrgAdminPage from './pages/OrgAdminPage';
 import { AuthProvider, useAuth } from './hooks/useAuth';
 
 const queryClient = new QueryClient();
@@ -26,6 +27,17 @@ const EnterpriseRoute = ({ children }: { children: React.ReactNode }) => {
   const { user } = useAuth();
   if (!user) return <Navigate to="/" replace />;
   if (user.role !== 'enterprise_admin') return <Navigate to="/app" replace />;
+  return <>{children}</>;
+};
+
+const OrgAdminRoute = ({ children }: { children: React.ReactNode }) => {
+  const { user } = useAuth();
+  if (!user) return <Navigate to="/" replace />;
+  const canAccess =
+    user.role === 'enterprise_admin' ||
+    user.permissions?.can_manage_users ||
+    user.permissions?.can_manage_roles;
+  if (!canAccess) return <Navigate to="/app" replace />;
   return <>{children}</>;
 };
 
@@ -57,6 +69,7 @@ function App() {
               <Route path="calendar" element={<CalendarPage />} />
               <Route path="metrics" element={<MetricsPage />} />
               <Route path="admin" element={<AdminPage />} />
+              <Route path="org-admin" element={<OrgAdminRoute><OrgAdminPage /></OrgAdminRoute>} />
               <Route path="dev" element={<EnterpriseRoute><DevPage /></EnterpriseRoute>} />
             </Route>
           </Routes>

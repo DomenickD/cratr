@@ -13,7 +13,8 @@ import {
   Crown,
   Layers,
   ChevronRight,
-  Terminal
+  Terminal,
+  Users,
 } from 'lucide-react';
 
 const Sidebar = () => {
@@ -31,6 +32,15 @@ const Sidebar = () => {
     { icon: BarChart3, label: 'Metrics', path: '/app/metrics' },
     { icon: Settings, label: 'Studio', path: '/app/admin' },
   ];
+
+  const canAccessOrgAdmin =
+    isEnterpriseAdmin ||
+    user?.permissions?.can_manage_users ||
+    user?.permissions?.can_manage_roles;
+
+  const adminItems = canAccessOrgAdmin
+    ? [{ icon: Users, label: 'Org Admin', path: '/app/org-admin' }]
+    : [];
 
   const enterpriseItems = [
     { icon: Terminal, label: 'Dev Console', path: '/app/dev' },
@@ -99,6 +109,32 @@ const Sidebar = () => {
             </li>
           ))}
         </ul>
+
+        {adminItems.length > 0 && (
+          <div className="mt-4">
+            <p className="text-[10px] font-black uppercase tracking-widest text-slate-600 px-3 mb-2">Admin</p>
+            <ul className="space-y-1">
+              {adminItems.map((item) => (
+                <li key={item.path}>
+                  <Link
+                    to={item.path}
+                    className={`flex items-center justify-between p-3 rounded-xl transition-all text-sm font-bold group ${
+                      isActive(item.path)
+                        ? 'bg-indigo-600 text-white shadow-lg shadow-indigo-500/20'
+                        : 'text-slate-400 hover:bg-slate-800 hover:text-white'
+                    }`}
+                  >
+                    <div className="flex items-center gap-3">
+                      <item.icon size={18} />
+                      <span>{item.label}</span>
+                    </div>
+                    {isActive(item.path) && <ChevronRight size={14} className="opacity-60" />}
+                  </Link>
+                </li>
+              ))}
+            </ul>
+          </div>
+        )}
 
         {isEnterpriseAdmin && (
           <div className="mt-4">

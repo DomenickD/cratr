@@ -23,6 +23,7 @@ ENTERPRISE_ADMIN_PERMISSIONS = {
     "can_edit_all_records": True,
     "can_delete_records": True,
     "is_enterprise_admin": True,
+    "allowed_steps": None,  # null = unrestricted access to all steps
 }
 
 
@@ -59,6 +60,7 @@ def login(username: str, db: Session = Depends(get_db)):
                         "can_edit_all_records": role.can_edit_all_records,
                         "can_delete_records": role.can_delete_records,
                         "is_enterprise_admin": False,
+                        "allowed_steps": role.allowed_steps,  # null = unrestricted, dict = per-step access
                     }
             db.execute(text("SET search_path TO public"))
 

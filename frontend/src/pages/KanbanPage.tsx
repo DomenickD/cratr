@@ -5,6 +5,7 @@ import { useAuth } from '../hooks/useAuth';
 import { DndContext, closestCenter } from '@dnd-kit/core';
 import { Layout as Trello } from 'lucide-react';
 import { KanbanColumn } from '../components/KanbanColumn';
+import { getStepAccess } from '../utils/stepAccess';
 
 export default function KanbanPage() {
   const { user } = useAuth();
@@ -75,10 +76,17 @@ export default function KanbanPage() {
       alert('You do not have permission to move records.');
       return;
     }
+    // Block drop into read-only columns
+    if (getStepAccess(user, over.id) === 'read') {
+      alert('This step is read-only for your role.');
+      return;
+    }
     moveMutation.mutate({ recordId: active.id, newStatus: over.id });
   };
 
-  const columns = selectedEntity?.fields?.find((f: any) => f.name === statusFieldName)?.configuration?.options || [];
+  const allColumns: string[] = selectedEntity?.fields?.find((f: any) => f.name === statusFieldName)?.configuration?.options || [];
+  // Filter out steps the user has no access to; keep read-only ones (greyed)
+  const columns = allColumns.filter((col) => getStepAccess(user, col) !== 'none');
 
   return (
     <div className="space-y-6">
@@ -103,6 +111,7 @@ export default function KanbanPage() {
                 id={col}
                 title={col}
                 records={filteredRecords.filter((r: any) => r.data[statusFieldName] === col)}
+                readonly={getStepAccess(user, col) === 'read'}
               />
             ))}
           </DndContext>

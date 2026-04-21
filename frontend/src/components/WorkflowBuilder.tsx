@@ -11,34 +11,41 @@ import {
   Position
 } from '@xyflow/react';
 import '@xyflow/react/dist/style.css';
-import { Save, Plus, Settings2, X, Eye, EyeOff } from 'lucide-react';
+import { Save, Plus, Settings2, X, Eye, EyeOff, ChevronUp, ChevronDown, AlignLeft } from 'lucide-react';
 import axios from 'axios';
 
-const StatusNode = ({ data }: any) => {
+const StatusNode = ({ data, selected }: any) => {
+  const visibleCount = data.fieldConfigs?.filter((f: any) => f.visible).length || 0;
+  const totalCount = data.fieldConfigs?.length || 0;
+
   return (
-    <div className="bg-slate-800 border-2 border-indigo-500 rounded-xl p-4 shadow-lg min-w-[180px]">
+    <div className={`bg-slate-800 border-2 rounded-xl p-4 shadow-lg min-w-[200px] transition-colors ${selected ? 'border-indigo-400 shadow-indigo-500/30' : 'border-slate-600 hover:border-indigo-500/50'}`}>
       <Handle type="target" position={Position.Top} className="w-3 h-3 bg-indigo-500" />
       <div className="flex items-center gap-2 mb-2">
         <div className="w-2 h-2 rounded-full bg-indigo-500" />
         <span className="font-bold text-white">{data.label}</span>
       </div>
-      <div className="text-[10px] text-slate-400 uppercase font-bold tracking-wider">
-        {data.fieldConfigs?.filter((f: any) => f.visible).length || 0} Visible Fields
+      <div className="flex items-center gap-2">
+        <div className="text-[10px] text-slate-400 font-bold">
+          {visibleCount}/{totalCount} fields shown
+        </div>
+        {data.instructions && (
+          <AlignLeft size={10} className="text-indigo-400" title="Has instructions" />
+        )}
       </div>
       <Handle type="source" position={Position.Bottom} className="w-3 h-3 bg-indigo-500" />
     </div>
   );
 };
 
-const nodeTypes = {
-  status: StatusNode,
-};
+const nodeTypes = { status: StatusNode };
 
-export default function WorkflowBuilder({ entity, onSave }: { entity: any, onSave: () => void }) {
+export default function WorkflowBuilder({ entity, onSave }: { entity: any; onSave: () => void }) {
   const [nodes, setNodes] = useState<any[]>([]);
   const [edges, setEdges] = useState<any[]>([]);
   const [selectedNode, setSelectedNode] = useState<any>(null);
   const [newStatusName, setNewStatusName] = useState('');
+  const [saving, setSaving] = useState(false);
 
   useEffect(() => {
     if (entity?.workflow_config) {
@@ -46,6 +53,14 @@ export default function WorkflowBuilder({ entity, onSave }: { entity: any, onSav
       setEdges(entity.workflow_config.edges || []);
     }
   }, [entity]);
+
+  // Keep selectedNode in sync with nodes state
+  useEffect(() => {
+    if (selectedNode) {
+      const updated = nodes.find((n) => n.id === selectedNode.id);
+      if (updated) setSelectedNode(updated);
+    }
+  }, [nodes]);
 
   const onNodesChange = useCallback(
     (changes: any) => setNodes((nds) => applyNodeChanges(changes, nds)),
@@ -56,107 +71,124 @@ export default function WorkflowBuilder({ entity, onSave }: { entity: any, onSav
     []
   );
   const onConnect = useCallback(
-    (params: any) => setEdges((eds) => addEdge(params, eds)),
+    (params: any) => setEdges((eds) => addEdge({ ...params, animated: true }, eds)),
     []
   );
 
+  const buildFieldConfigs = (existingConfigs?: any[]) =>
+    entity.fields.map((f: any) => {
+      const existing = existingConfigs?.find((fc: any) => fc.field_id === f.id);
+      return existing ?? {
+        field_id: f.id,
+        name: f.name,
+        display_name: f.display_name,
+        field_type: f.field_type,
+        visible: true,
+        required: f.is_required,
+        order: 0,
+      };
+    });
+
   const addNode = (status: string) => {
+    const existing = nodes.find((n) => n.data.label === status);
+    if (existing) return;
     const newNode = {
       id: `node-${status}`,
       type: 'status',
-      data: {
-        label: status,
-        fieldConfigs: entity.fields.map((f: any) => ({
-          field_id: f.id,
-          name: f.name,
-          display_name: f.display_name,
-          visible: true,
-          required: f.is_required
-        }))
-      },
-      position: { x: 250, y: nodes.length * 100 + 50 },
+      data: { label: status, fieldConfigs: buildFieldConfigs(), instructions: '' },
+      position: { x: 250, y: nodes.length * 140 + 50 },
     };
     setNodes((nds) => [...nds, newNode]);
   };
 
   const createNewStatus = async () => {
-    if (!newStatusName) return;
-
+    if (!newStatusName.trim()) return;
+    const statusField = entity?.fields?.find(
+      (f: any) => f.name.toLowerCase() === 'status' || f.display_name.toLowerCase() === 'status'
+    );
+    if (!statusField) {
+      alert('No status field found on this entity.');
+      return;
+    }
     try {
-        const statusField = entity?.fields?.find((f: any) =>
-            f.name.toLowerCase() === 'status' || f.display_name.toLowerCase() === 'status'
-        );
-
-        if (!statusField) {
-            alert('No status field found to add option to.');
-            return;
-        }
-
-        const newOptions = [...(statusField.configuration?.options || []), newStatusName];
-
-        await axios.put(`/api/entities/${entity.id}/fields/${statusField.id}`, {
-            configuration: { ...statusField.configuration, options: newOptions }
-        });
-
-        addNode(newStatusName);
-        setNewStatusName('');
-        onSave();
-    } catch (error) {
-        console.error(error);
-        alert('Error adding new status option');
+      const newOptions = [...(statusField.configuration?.options || []), newStatusName.trim()];
+      await axios.put(`/api/entities/${entity.id}/fields/${statusField.id}`, {
+        configuration: { ...statusField.configuration, options: newOptions },
+      });
+      addNode(newStatusName.trim());
+      setNewStatusName('');
+      onSave();
+    } catch {
+      alert('Error adding new step');
     }
   };
 
-  const onNodeClick = (_: any, node: any) => {
-    setSelectedNode(node);
+  const onNodeClick = (_: any, node: any) => setSelectedNode(node);
+  const onPaneClick = () => setSelectedNode(null);
+
+  const updateFieldConfig = (fieldId: number, key: string, value: any) => {
+    setNodes((nds) =>
+      nds.map((node) =>
+        node.id === selectedNode.id
+          ? {
+              ...node,
+              data: {
+                ...node.data,
+                fieldConfigs: node.data.fieldConfigs.map((fc: any) =>
+                  fc.field_id === fieldId ? { ...fc, [key]: value } : fc
+                ),
+              },
+            }
+          : node
+      )
+    );
   };
 
-  const updateFieldConfig = (fieldId: number, key: string, value: boolean) => {
+  const moveField = (fieldId: number, direction: 'up' | 'down') => {
+    const configs: any[] = [...(selectedNode.data.fieldConfigs || [])];
+    const idx = configs.findIndex((fc) => fc.field_id === fieldId);
+    const swapIdx = direction === 'up' ? idx - 1 : idx + 1;
+    if (swapIdx < 0 || swapIdx >= configs.length) return;
+    [configs[idx], configs[swapIdx]] = [configs[swapIdx], configs[idx]];
     setNodes((nds) =>
-      nds.map((node) => {
-        if (node.id === selectedNode.id) {
-          return {
-            ...node,
-            data: {
-              ...node.data,
-              fieldConfigs: node.data.fieldConfigs.map((fc: any) =>
-                fc.field_id === fieldId ? { ...fc, [key]: value } : fc
-              ),
-            },
-          };
-        }
-        return node;
-      })
+      nds.map((node) =>
+        node.id === selectedNode.id
+          ? { ...node, data: { ...node.data, fieldConfigs: configs } }
+          : node
+      )
     );
-    setSelectedNode((prev: any) => ({
-        ...prev,
-        data: {
-            ...prev.data,
-            fieldConfigs: prev.data.fieldConfigs.map((fc: any) =>
-                fc.field_id === fieldId ? { ...fc, [key]: value } : fc
-            )
-        }
-    }));
+  };
+
+  const updateInstructions = (instructions: string) => {
+    setNodes((nds) =>
+      nds.map((node) =>
+        node.id === selectedNode.id
+          ? { ...node, data: { ...node.data, instructions } }
+          : node
+      )
+    );
   };
 
   const saveWorkflow = async () => {
+    setSaving(true);
     try {
-      await axios.put(`/api/entities/${entity.id}`, {
-        workflow_config: { nodes, edges }
-      }, { headers: { 'X-Tenant-ID': 'public' } });
-      alert('Workflow saved successfully!');
+      await axios.put(`/api/entities/${entity.id}`, { workflow_config: { nodes, edges } });
       onSave();
-    } catch (error) {
-      console.error(error);
+    } catch {
       alert('Error saving workflow');
+    } finally {
+      setSaving(false);
     }
   };
 
-  const statusField = entity?.fields?.find((f: any) =>
-    f.name.toLowerCase() === 'status' || f.display_name.toLowerCase() === 'status'
-  ) || entity?.fields?.find((f: any) => f.field_type === 'select');
+  const statusField =
+    entity?.fields?.find(
+      (f: any) => f.name.toLowerCase() === 'status' || f.display_name.toLowerCase() === 'status'
+    ) ?? entity?.fields?.find((f: any) => f.field_type === 'select');
+  const statusOptions: string[] = statusField?.configuration?.options || [];
 
-  const statusOptions = statusField?.configuration?.options || [];
+  const visibleFields = selectedNode?.data?.fieldConfigs?.filter((fc: any) => fc.visible) ?? [];
+  const hiddenFields = selectedNode?.data?.fieldConfigs?.filter((fc: any) => !fc.visible) ?? [];
 
   return (
     <div className="h-[700px] w-full bg-slate-900 rounded-2xl border border-slate-700 overflow-hidden relative text-white">
@@ -167,99 +199,188 @@ export default function WorkflowBuilder({ entity, onSave }: { entity: any, onSav
         onEdgesChange={onEdgesChange}
         onConnect={onConnect}
         onNodeClick={onNodeClick}
+        onPaneClick={onPaneClick}
         nodeTypes={nodeTypes}
         fitView
       >
         <Background color="#334155" />
         <Controls />
-        <Panel position="top-right" className="bg-slate-800 p-2 rounded-xl shadow-lg border border-slate-700 flex gap-2">
-            <button
-                onClick={saveWorkflow}
-                className="bg-indigo-600 text-white p-2 rounded-lg hover:bg-indigo-700 flex items-center gap-2 text-sm font-bold"
-            >
-                <Save size={16} /> Save Workflow
-            </button>
+
+        {/* Save button */}
+        <Panel position="top-right" className="bg-slate-800 p-2 rounded-xl shadow-lg border border-slate-700">
+          <button
+            onClick={saveWorkflow}
+            disabled={saving}
+            className="bg-indigo-600 text-white px-4 py-2 rounded-lg hover:bg-indigo-700 flex items-center gap-2 text-sm font-bold disabled:opacity-60"
+          >
+            <Save size={16} />
+            {saving ? 'Saving…' : 'Save Workflow'}
+          </button>
         </Panel>
 
-        <Panel position="top-left" className="bg-slate-800 p-4 rounded-xl shadow-lg border border-slate-700 max-w-[200px]">
-            <h4 className="text-xs font-black uppercase text-slate-400 mb-3 tracking-widest">Process Steps</h4>
+        {/* Left panel — step list */}
+        <Panel position="top-left" className="bg-slate-800 p-4 rounded-xl shadow-lg border border-slate-700 max-w-[210px]">
+          <h4 className="text-[10px] font-black uppercase text-slate-400 mb-3 tracking-widest">Process Steps</h4>
 
-            <div className="mb-4 flex flex-col gap-2">
-                <input
-                    type="text"
-                    placeholder="New step name..."
-                    value={newStatusName}
-                    onChange={(e) => setNewStatusName(e.target.value)}
-                    className="text-[10px] p-2 border border-slate-600 rounded bg-slate-700 text-white outline-none focus:border-indigo-500 font-bold"
-                />
+          <div className="mb-4 flex flex-col gap-2">
+            <input
+              type="text"
+              placeholder="New step name…"
+              value={newStatusName}
+              onChange={(e) => setNewStatusName(e.target.value)}
+              onKeyDown={(e) => e.key === 'Enter' && createNewStatus()}
+              className="text-xs p-2 border border-slate-600 rounded bg-slate-700 text-white outline-none focus:border-indigo-500 font-bold"
+            />
+            <button
+              onClick={createNewStatus}
+              className="bg-indigo-600 text-white p-2 rounded text-[10px] font-black hover:bg-indigo-700 transition-colors flex items-center justify-center gap-1"
+            >
+              <Plus size={12} /> ADD STEP
+            </button>
+          </div>
+
+          <hr className="mb-3 border-slate-700" />
+
+          <div className="space-y-1.5">
+            {statusOptions.map((opt: string) => {
+              const onCanvas = nodes.some((n) => n.data.label === opt);
+              return (
                 <button
-                    onClick={createNewStatus}
-                    className="bg-slate-700 text-white p-2 rounded text-[10px] font-black hover:bg-slate-600 transition-colors"
+                  key={opt}
+                  onClick={() => addNode(opt)}
+                  disabled={onCanvas}
+                  className="w-full text-left p-2 rounded-lg bg-slate-700 border border-slate-600 text-xs font-bold hover:bg-indigo-900/30 hover:border-indigo-700 disabled:opacity-40 flex items-center justify-between group"
                 >
-                    ADD NEW STEP
+                  <span className="truncate">{opt}</span>
+                  {onCanvas ? (
+                    <span className="text-[9px] text-indigo-400 font-black">ON</span>
+                  ) : (
+                    <Plus size={11} className="opacity-0 group-hover:opacity-100 text-indigo-400" />
+                  )}
                 </button>
-            </div>
-
-            <hr className="mb-4 border-slate-700" />
-
-            <div className="space-y-2">
-                {statusOptions.map((opt: string) => (
-                    <button
-                        key={opt}
-                        onClick={() => addNode(opt)}
-                        disabled={nodes.some(n => n.data.label === opt)}
-                        className="w-full text-left p-2 rounded bg-slate-700 border border-slate-600 text-xs font-bold hover:bg-indigo-900/30 hover:border-indigo-700 disabled:opacity-50 flex items-center justify-between group"
-                    >
-                        {opt}
-                        <Plus size={12} className="opacity-0 group-hover:opacity-100" />
-                    </button>
-                ))}
-            </div>
+              );
+            })}
+          </div>
         </Panel>
       </ReactFlow>
 
+      {/* Right panel — step configuration */}
       {selectedNode && (
-        <div className="absolute right-0 top-0 bottom-0 w-80 bg-slate-800 border-l border-slate-700 shadow-2xl p-6 z-50 overflow-y-auto">
-            <div className="flex justify-between items-center mb-6">
-                <h3 className="text-lg font-bold flex items-center gap-2">
-                    <Settings2 size={20} className="text-indigo-400" />
-                    Step Settings
-                </h3>
-                <button onClick={() => setSelectedNode(null)} className="text-slate-400 hover:text-slate-200">
-                    <X size={20} />
-                </button>
-            </div>
+        <div className="absolute right-0 top-0 bottom-0 w-80 bg-slate-800 border-l border-slate-700 shadow-2xl p-5 z-50 overflow-y-auto flex flex-col gap-5">
+          {/* Header */}
+          <div className="flex justify-between items-center">
+            <h3 className="text-base font-bold flex items-center gap-2">
+              <Settings2 size={18} className="text-indigo-400" />
+              Step Configuration
+            </h3>
+            <button onClick={() => setSelectedNode(null)} className="text-slate-400 hover:text-white">
+              <X size={18} />
+            </button>
+          </div>
 
-            <div className="mb-6 p-4 bg-indigo-900/30 rounded-2xl border border-indigo-800">
-                <p className="text-xs font-black text-indigo-400 uppercase mb-1">Current Step</p>
-                <p className="text-xl font-black text-indigo-300">{selectedNode.data.label}</p>
-            </div>
+          {/* Step badge */}
+          <div className="p-4 bg-indigo-900/30 rounded-2xl border border-indigo-800">
+            <p className="text-[10px] font-black text-indigo-400 uppercase tracking-widest mb-1">Step Name</p>
+            <p className="text-xl font-black text-indigo-300">{selectedNode.data.label}</p>
+          </div>
 
-            <h4 className="text-xs font-black text-slate-400 uppercase mb-4 tracking-widest">Field Permissions</h4>
-            <div className="space-y-3">
-                {selectedNode.data.fieldConfigs?.map((fc: any) => (
-                    <div key={fc.field_id} className="p-3 bg-slate-700 rounded-xl border border-slate-600">
-                        <div className="flex items-center justify-between mb-2">
-                            <span className="font-bold text-slate-200 text-sm">{fc.display_name}</span>
-                            <button
-                                onClick={() => updateFieldConfig(fc.field_id, 'visible', !fc.visible)}
-                                className={fc.visible ? 'text-indigo-400' : 'text-slate-500'}
-                            >
-                                {fc.visible ? <Eye size={18} /> : <EyeOff size={18} />}
-                            </button>
-                        </div>
-                        <div className="flex items-center gap-2">
-                            <input
-                                type="checkbox"
-                                checked={fc.required}
-                                onChange={(e) => updateFieldConfig(fc.field_id, 'required', e.target.checked)}
-                                className="h-3 w-3 rounded border-slate-500 text-indigo-600"
-                            />
-                            <span className="text-[10px] font-bold text-slate-400 uppercase">Required at this step</span>
-                        </div>
+          {/* Instructions */}
+          <div>
+            <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-2 block">
+              Step Instructions
+            </label>
+            <textarea
+              value={selectedNode.data.instructions || ''}
+              onChange={(e) => updateInstructions(e.target.value)}
+              placeholder="Guidance shown to users when filling out this step…"
+              rows={3}
+              className="w-full bg-slate-700 border border-slate-600 rounded-xl p-3 text-sm text-white resize-none focus:outline-none focus:border-indigo-500 placeholder-slate-500"
+            />
+          </div>
+
+          {/* Visible fields */}
+          <div>
+            <div className="flex items-center justify-between mb-2">
+              <h4 className="text-[10px] font-black text-slate-400 uppercase tracking-widest">
+                Visible Fields <span className="text-indigo-400">({visibleFields.length})</span>
+              </h4>
+              <span className="text-[9px] text-slate-500 font-bold">shown on form</span>
+            </div>
+            <div className="space-y-2">
+              {visibleFields.map((fc: any, i: number) => (
+                <div key={fc.field_id} className="p-3 bg-slate-700 rounded-xl border border-slate-600">
+                  <div className="flex items-center justify-between mb-2">
+                    <div className="flex items-center gap-2 min-w-0">
+                      <div className="flex flex-col gap-0.5">
+                        <button
+                          onClick={() => moveField(fc.field_id, 'up')}
+                          disabled={i === 0}
+                          className="text-slate-500 hover:text-slate-300 disabled:opacity-20"
+                        >
+                          <ChevronUp size={12} />
+                        </button>
+                        <button
+                          onClick={() => moveField(fc.field_id, 'down')}
+                          disabled={i === visibleFields.length - 1}
+                          className="text-slate-500 hover:text-slate-300 disabled:opacity-20"
+                        >
+                          <ChevronDown size={12} />
+                        </button>
+                      </div>
+                      <span className="font-bold text-slate-100 text-sm truncate">{fc.display_name}</span>
                     </div>
-                ))}
+                    <button
+                      onClick={() => updateFieldConfig(fc.field_id, 'visible', false)}
+                      className="text-indigo-400 hover:text-slate-400 flex-shrink-0"
+                      title="Hide this field at this step"
+                    >
+                      <Eye size={16} />
+                    </button>
+                  </div>
+                  <label className="flex items-center gap-2 cursor-pointer">
+                    <input
+                      type="checkbox"
+                      checked={fc.required}
+                      onChange={(e) => updateFieldConfig(fc.field_id, 'required', e.target.checked)}
+                      className="h-3 w-3 rounded border-slate-500 text-indigo-600 accent-indigo-600"
+                    />
+                    <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wide">
+                      Required at this step
+                    </span>
+                  </label>
+                </div>
+              ))}
+              {visibleFields.length === 0 && (
+                <p className="text-xs text-slate-500 italic text-center py-2">No visible fields</p>
+              )}
             </div>
+          </div>
+
+          {/* Hidden fields */}
+          {hiddenFields.length > 0 && (
+            <div>
+              <h4 className="text-[10px] font-black text-slate-500 uppercase tracking-widest mb-2">
+                Hidden Fields <span className="text-slate-600">({hiddenFields.length})</span>
+              </h4>
+              <div className="space-y-1.5">
+                {hiddenFields.map((fc: any) => (
+                  <div
+                    key={fc.field_id}
+                    className="px-3 py-2 bg-slate-900/50 rounded-xl border border-slate-700 flex items-center justify-between"
+                  >
+                    <span className="text-xs text-slate-500 font-bold">{fc.display_name}</span>
+                    <button
+                      onClick={() => updateFieldConfig(fc.field_id, 'visible', true)}
+                      className="text-slate-600 hover:text-indigo-400"
+                      title="Show this field at this step"
+                    >
+                      <EyeOff size={14} />
+                    </button>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
         </div>
       )}
     </div>

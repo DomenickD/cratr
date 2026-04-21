@@ -9,19 +9,31 @@ import {
   Position
 } from '@xyflow/react';
 import '@xyflow/react/dist/style.css';
-import { GitBranch, Activity, Info, ChevronRight } from 'lucide-react';
+import { GitBranch, Activity, Info, ChevronRight, Lock } from 'lucide-react';
+import { useAuth } from '../hooks/useAuth';
+import { getStepAccess } from '../utils/stepAccess';
 
 const MonitorNode = ({ data }: any) => {
+  const readonly = data.access === 'read';
   return (
-    <div className="bg-slate-800 border-2 border-slate-600 rounded-[1.5rem] p-5 shadow-sm min-w-[200px] group hover:border-indigo-500 transition-colors">
+    <div className={`border-2 rounded-[1.5rem] p-5 shadow-sm min-w-[200px] transition-colors ${
+      readonly
+        ? 'bg-slate-800/40 border-slate-700/50 opacity-60'
+        : 'bg-slate-800 border-slate-600 group hover:border-indigo-500'
+    }`}>
       <Handle type="target" position={Position.Top} className="opacity-0" />
       <div className="flex flex-col items-center">
-        <div className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1">{data.label}</div>
-        <div className="text-4xl font-black text-white group-hover:text-indigo-400 transition-colors">
-            {data.count || 0}
+        <div className="flex items-center gap-1.5 mb-1">
+          {readonly && <Lock size={10} className="text-amber-600" />}
+          <div className={`text-[10px] font-black uppercase tracking-widest ${readonly ? 'text-slate-500' : 'text-slate-400'}`}>
+            {data.label}
+          </div>
+        </div>
+        <div className={`text-4xl font-black transition-colors ${readonly ? 'text-slate-500' : 'text-white group-hover:text-indigo-400'}`}>
+          {data.count || 0}
         </div>
         <div className="text-[10px] font-bold text-slate-500 mt-2 flex items-center gap-1">
-            Active Records <ChevronRight size={10} />
+          {readonly ? 'Read Only' : <><span>Active Records</span><ChevronRight size={10} /></>}
         </div>
       </div>
       <Handle type="source" position={Position.Bottom} className="opacity-0" />
@@ -32,6 +44,7 @@ const MonitorNode = ({ data }: any) => {
 const nodeTypes = { status: MonitorNode };
 
 export default function WorkflowsPage() {
+  const { user } = useAuth();
   const [selectedEntityId, setSelectedEntityId] = useState<number | null>(null);
 
   const { data: entities } = useQuery({
@@ -71,10 +84,13 @@ export default function WorkflowsPage() {
       f.name.toLowerCase() === 'status' || f.display_name.toLowerCase() === 'status'
     );
 
-    const nodes = (selectedEntity.workflow_config.nodes || []).map((node: any) => {
-      const count = (records || []).filter((r: any) => r.data[statusField?.name] === node.data.label).length;
-      return { ...node, data: { ...node.data, count }, draggable: false };
-    });
+    const nodes = (selectedEntity.workflow_config.nodes || [])
+      .filter((node: any) => getStepAccess(user, node.data.label) !== 'none')
+      .map((node: any) => {
+        const access = getStepAccess(user, node.data.label);
+        const count = (records || []).filter((r: any) => r.data[statusField?.name] === node.data.label).length;
+        return { ...node, data: { ...node.data, count, access }, draggable: false };
+      });
 
     return { nodes, edges: selectedEntity.workflow_config.edges };
   }, [selectedEntity, records]);

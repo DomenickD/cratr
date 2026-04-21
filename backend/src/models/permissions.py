@@ -1,4 +1,4 @@
-from sqlalchemy import Column, Integer, String, Boolean, ForeignKey
+from sqlalchemy import Column, Integer, String, Boolean, ForeignKey, JSON
 from sqlalchemy.orm import relationship
 from src.db.database import Base
 
@@ -21,6 +21,9 @@ class Role(Base):
     can_view_all_records = Column(Boolean, default=False) # If False, can only see own
     can_edit_all_records = Column(Boolean, default=False)
     can_delete_records = Column(Boolean, default=False)
+
+    # JSON array of step labels this role can see; null = all steps visible
+    allowed_steps = Column(JSON, nullable=True, default=None)
 
 class UserRole(Base):
     """
