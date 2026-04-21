@@ -28,7 +28,7 @@ export default function AdminPage() {
   const { data: entities } = useQuery({
     queryKey: ['entities'],
     queryFn: async () => {
-      const res = await axios.get('/api/entities/', { headers: { 'X-Tenant-ID': 'public' } });
+      const res = await axios.get('/api/entities/');
       return res.data;
     }
   });
@@ -64,7 +64,7 @@ export default function AdminPage() {
     const field = fields[index];
     if (field.id && selectedEntityId) {
         if (!confirm('Are you sure you want to delete this field? Data in this field will be inaccessible.')) return;
-        await axios.delete(`/api/entities/${selectedEntityId}/fields/${field.id}`, { headers: { 'X-Tenant-ID': 'public' } });
+        await axios.delete(`/api/entities/${selectedEntityId}/fields/${field.id}`);
     }
     setFields(fields.filter((_, i) => i !== index));
   };
@@ -102,17 +102,17 @@ export default function AdminPage() {
       };
 
       if (selectedEntityId) {
-          await axios.put(`/api/entities/${selectedEntityId}`, payload, { headers: { 'X-Tenant-ID': 'public' } });
+          await axios.put(`/api/entities/${selectedEntityId}`, payload);
 
           for (const field of fields) {
               if (field.id) {
-                  await axios.put(`/api/entities/${selectedEntityId}/fields/${field.id}`, field, { headers: { 'X-Tenant-ID': 'public' } });
+                  await axios.put(`/api/entities/${selectedEntityId}/fields/${field.id}`, field);
               } else {
-                  await axios.post(`/api/entities/${selectedEntityId}/fields`, field, { headers: { 'X-Tenant-ID': 'public' } });
+                  await axios.post(`/api/entities/${selectedEntityId}/fields`, field);
               }
           }
       } else {
-          await axios.post('/api/entities/', { ...payload, name: entityName, fields }, { headers: { 'X-Tenant-ID': 'public' } });
+          await axios.post('/api/entities/', { ...payload, name: entityName, fields });
       }
 
       alert('Configuration Saved Successfully!');
@@ -292,9 +292,10 @@ export default function AdminPage() {
                                             <label className="flex items-center cursor-pointer">
                                                 <input
                                                     type="checkbox"
-                                                    checked={field.is_required}
+                                                    checked={field.is_required || field.name.toLowerCase() === 'status' || field.display_name.toLowerCase() === 'status'}
+                                                    disabled={field.name.toLowerCase() === 'status' || field.display_name.toLowerCase() === 'status'}
                                                     onChange={(e) => updateField(fieldIndex, 'is_required', e.target.checked)}
-                                                    className="w-4 h-4 rounded border-slate-500 text-indigo-600 focus:ring-indigo-500"
+                                                    className="w-4 h-4 rounded border-slate-500 text-indigo-600 focus:ring-indigo-500 disabled:opacity-50"
                                                 />
                                                 <span className="ml-2 text-[10px] font-black text-slate-400 uppercase tracking-widest">Required</span>
                                             </label>

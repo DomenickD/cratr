@@ -69,40 +69,53 @@ def seed_organization(db, name, schema):
         )
         db.add(org_admin_role)
 
-    requestor_role = db.query(Role).filter(Role.name == "Requestor").first()
-    if not requestor_role:
-        requestor_role = Role(
-            name="Requestor",
+    manager_role = db.query(Role).filter(Role.name == "Manager").first()
+    if not manager_role:
+        manager_role = Role(
+            name="Manager",
+            can_create_records=True,
+            can_view_all_records=True,
+            can_edit_all_records=True,
+            can_delete_records=True
+        )
+        db.add(manager_role)
+
+    submitter_role = db.query(Role).filter(Role.name == "Submitter").first()
+    if not submitter_role:
+        submitter_role = Role(
+            name="Submitter",
             can_create_records=True,
             can_view_all_records=False
         )
-        db.add(requestor_role)
+        db.add(submitter_role)
     db.commit()
 
-    # 2. Org Admin user
-    admin_username = f"{schema}_admin"
-    db.execute(text("SET search_path TO public"))
-    db_user = db.query(User).filter(User.username == admin_username).first()
-    if not db_user:
-        new_user = User(
-            username=admin_username,
-            full_name=f"{name} Admin",
-            email=f"{admin_username}@{schema}.cratr.io",
-            hashed_password=get_password_hash("password"),
-            role="org_admin",
-            organization_id=org.id
-        )
-        db.add(new_user)
-        db.commit()
-        db.refresh(new_user)
-
-        db.execute(text(f"SET search_path TO {schema}, public"))
-        db.add(UserRole(user_id=new_user.id, role_id=org_admin_role.id))
-        db.commit()
+    # 2. Org Users
+    for role_name, user_type in [("Org Admin", "admin"), ("Manager", "manager"), ("Submitter", "submitter")]:
+        username = f"{schema}_{user_type}"
         db.execute(text("SET search_path TO public"))
-        print(f"  Created {admin_username} user")
-    else:
-        print(f"  {admin_username} already exists")
+        db_user = db.query(User).filter(User.username == username).first()
+        if not db_user:
+            new_user = User(
+                username=username,
+                full_name=f"{name} {role_name}",
+                email=f"{username}@{schema}.cratr.io",
+                hashed_password=get_password_hash("password"),
+                role="org_user",
+                organization_id=org.id
+            )
+            db.add(new_user)
+            db.commit()
+            db.refresh(new_user)
+
+            db.execute(text(f"SET search_path TO {schema}, public"))
+            role_obj = db.query(Role).filter(Role.name == role_name).first()
+            db.add(UserRole(user_id=new_user.id, role_id=role_obj.id))
+            db.commit()
+            db.execute(text("SET search_path TO public"))
+            print(f"  Created {username} user")
+        else:
+            print(f"  {username} already exists")
 
     # 3. Seed a default RFI Tracker in this org's schema
     db.execute(text(f"SET search_path TO {schema}, public"))
@@ -114,9 +127,9 @@ def seed_organization(db, name, schema):
             description=f"Standard RFI lifecycle for {name}",
             workflow_config={
                 "nodes": [
-                    {"id": "node-New", "type": "status", "position": {"x": 0, "y": 0}, "data": {"label": "New"}},
-                    {"id": "node-In Progress", "type": "status", "position": {"x": 250, "y": 0}, "data": {"label": "In Progress"}},
-                    {"id": "node-Completed", "type": "status", "position": {"x": 500, "y": 0}, "data": {"label": "Completed"}}
+                    {"id": "node-New", "type": "status", "position": {"x": 0, "y": 0}, "data": {"label": "New", "fieldConfigs": [], "instructions": ""}},
+                    {"id": "node-In Progress", "type": "status", "position": {"x": 250, "y": 0}, "data": {"label": "In Progress", "fieldConfigs": [], "instructions": ""}},
+                    {"id": "node-Completed", "type": "status", "position": {"x": 500, "y": 0}, "data": {"label": "Completed", "fieldConfigs": [], "instructions": ""}}
                 ],
                 "edges": [
                     {"id": "e1-2", "source": "node-New", "target": "node-In Progress", "animated": True},
@@ -130,7 +143,7 @@ def seed_organization(db, name, schema):
 
         db.add_all([
             FieldDefinition(entity_definition_id=rfi.id, name="title", display_name="Title", field_type="text", is_required=True),
-            FieldDefinition(entity_definition_id=rfi.id, name="status", display_name="Status", field_type="select", configuration={"options": ["New", "In Progress", "Completed"]}),
+            FieldDefinition(entity_definition_id=rfi.id, name="status", display_name="Status", field_type="select", is_required=True, configuration={"options": ["New", "In Progress", "Completed"]}),
             FieldDefinition(entity_definition_id=rfi.id, name="requestor", display_name="Requestor", field_type="text", default_value="@user"),
             FieldDefinition(entity_definition_id=rfi.id, name="date", display_name="Date", field_type="date", default_value="@today"),
         ])

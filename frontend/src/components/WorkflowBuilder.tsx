@@ -47,6 +47,11 @@ export default function WorkflowBuilder({ entity, onSave }: { entity: any; onSav
   const [newStatusName, setNewStatusName] = useState('');
   const [saving, setSaving] = useState(false);
 
+  // New Field Dialog state
+  const [showNewFieldDialog, setShowNewFieldDialog] = useState(false);
+  const [newFieldData, setNewFieldData] = useState({ name: '', display_name: '', field_type: 'text', is_required: false });
+  const [creatingField, setCreatingField] = useState(false);
+
   useEffect(() => {
     if (entity?.workflow_config) {
       setNodes(entity.workflow_config.nodes || []);
@@ -120,6 +125,44 @@ export default function WorkflowBuilder({ entity, onSave }: { entity: any; onSav
       onSave();
     } catch {
       alert('Error adding new step');
+    }
+  };
+
+  const createStepField = async () => {
+    if (!newFieldData.name || !newFieldData.display_name) return;
+    setCreatingField(true);
+    try {
+      const res = await axios.post(`/api/entities/${entity.id}/fields`, newFieldData);
+      const updatedEntity = res.data;
+      const newField = updatedEntity.fields[updatedEntity.fields.length - 1];
+
+      setNodes((nds) => nds.map(node => {
+        const isCurrent = node.id === selectedNode.id;
+        const newFc = {
+          field_id: newField.id,
+          name: newField.name,
+          display_name: newField.display_name,
+          field_type: newField.field_type,
+          visible: isCurrent,
+          required: isCurrent ? newField.is_required : false,
+          order: 0
+        };
+        return {
+          ...node,
+          data: {
+            ...node.data,
+            fieldConfigs: [...(node.data.fieldConfigs || []), newFc]
+          }
+        };
+      }));
+
+      setShowNewFieldDialog(false);
+      setNewFieldData({ name: '', display_name: '', field_type: 'text', is_required: false });
+      onSave(); 
+    } catch {
+      alert('Error creating step field');
+    } finally {
+      setCreatingField(false);
     }
   };
 
@@ -304,7 +347,7 @@ export default function WorkflowBuilder({ entity, onSave }: { entity: any; onSav
               <h4 className="text-[10px] font-black text-slate-400 uppercase tracking-widest">
                 Visible Fields <span className="text-indigo-400">({visibleFields.length})</span>
               </h4>
-              <span className="text-[9px] text-slate-500 font-bold">shown on form</span>
+              <button onClick={() => setShowNewFieldDialog(true)} className="text-[9px] bg-indigo-900/40 text-indigo-400 px-2 py-1 rounded font-bold hover:bg-indigo-900/60 transition-colors">+ NEW FIELD</button>
             </div>
             <div className="space-y-2">
               {visibleFields.map((fc: any, i: number) => (
@@ -381,6 +424,47 @@ export default function WorkflowBuilder({ entity, onSave }: { entity: any; onSav
               </div>
             </div>
           )}
+        </div>
+      )}
+
+      {/* New Field Dialog */}
+      {showNewFieldDialog && (
+        <div className="fixed inset-0 z-[100] bg-black/60 flex items-center justify-center p-4">
+          <div className="bg-slate-800 rounded-2xl border border-slate-700 shadow-2xl w-full max-w-sm p-6 space-y-4">
+            <div className="flex justify-between items-center">
+              <h3 className="text-lg font-bold text-white">Add Step-Specific Field</h3>
+              <button onClick={() => setShowNewFieldDialog(false)} className="text-slate-400 hover:text-white"><X size={18} /></button>
+            </div>
+            <p className="text-xs text-slate-400 mb-4">This field will be created and made visible <strong>only</strong> on the current step ({selectedNode?.data?.label}).</p>
+            <div className="space-y-3">
+              <div>
+                <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Internal Name</label>
+                <input type="text" value={newFieldData.name} onChange={e => setNewFieldData({...newFieldData, name: e.target.value})} placeholder="e.g. manager_notes" className="w-full bg-slate-700 border border-slate-600 rounded-lg p-2 text-sm text-white focus:border-indigo-500 outline-none" />
+              </div>
+              <div>
+                <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Display Label</label>
+                <input type="text" value={newFieldData.display_name} onChange={e => setNewFieldData({...newFieldData, display_name: e.target.value})} placeholder="e.g. Manager Notes" className="w-full bg-slate-700 border border-slate-600 rounded-lg p-2 text-sm text-white focus:border-indigo-500 outline-none" />
+              </div>
+              <div>
+                <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Data Type</label>
+                <select value={newFieldData.field_type} onChange={e => setNewFieldData({...newFieldData, field_type: e.target.value})} className="w-full bg-slate-700 border border-slate-600 rounded-lg p-2 text-sm text-white focus:border-indigo-500 outline-none">
+                  <option value="text">Short Text</option>
+                  <option value="textarea">Long Text</option>
+                  <option value="number">Number</option>
+                  <option value="date">Date</option>
+                  <option value="boolean">Checkbox</option>
+                  <option value="select">Dropdown</option>
+                </select>
+              </div>
+              <label className="flex items-center gap-2 cursor-pointer mt-2">
+                <input type="checkbox" checked={newFieldData.is_required} onChange={e => setNewFieldData({...newFieldData, is_required: e.target.checked})} className="rounded border-slate-500 text-indigo-600 focus:ring-indigo-500" />
+                <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Required at this step</span>
+              </label>
+            </div>
+            <button onClick={createStepField} disabled={creatingField} className="w-full bg-indigo-600 text-white font-bold py-2 rounded-lg mt-4 hover:bg-indigo-500 disabled:opacity-50 transition-colors shadow-lg shadow-indigo-900/20">
+              {creatingField ? 'Creating...' : 'Create & Add to Step'}
+            </button>
+          </div>
         </div>
       )}
     </div>

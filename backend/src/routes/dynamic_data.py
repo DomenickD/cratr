@@ -29,6 +29,8 @@ def create_entity_definition(
     db.refresh(db_entity)
 
     for field in entity.fields:
+        if field.name.lower() == "status" or field.display_name.lower() == "status":
+            field.is_required = True
         db_field = FieldModel(
             entity_definition_id=db_entity.id,
             **field.model_dump()
@@ -76,6 +78,9 @@ def add_field_to_entity(
     field: FieldDefinitionCreate,
     db: Session = Depends(get_tenant_db)
 ):
+    if field.name.lower() == "status" or field.display_name.lower() == "status":
+        field.is_required = True
+
     db_entity = db.query(EntityModel).filter(EntityModel.id == entity_id).first()
     if not db_entity:
         raise HTTPException(status_code=404, detail="Entity not found")
@@ -98,6 +103,13 @@ def update_field_definition(
         raise HTTPException(status_code=404, detail="Field not found")
     
     update_data = field_update.model_dump(exclude_unset=True)
+    if "name" in update_data and update_data["name"].lower() == "status":
+        update_data["is_required"] = True
+    if "display_name" in update_data and update_data["display_name"].lower() == "status":
+        update_data["is_required"] = True
+    if db_field.name.lower() == "status" or db_field.display_name.lower() == "status":
+        update_data["is_required"] = True
+
     for key, value in update_data.items():
         setattr(db_field, key, value)
     

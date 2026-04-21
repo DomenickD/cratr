@@ -1,5 +1,7 @@
 import { Link, Outlet, useLocation } from 'react-router-dom';
 import { useAuth } from '../hooks/useAuth';
+import { useQuery } from '@tanstack/react-query';
+import axios from 'axios';
 import {
   LayoutDashboard,
   Settings,
@@ -18,10 +20,16 @@ import {
 } from 'lucide-react';
 
 const Sidebar = () => {
-  const { user, organization, logout } = useAuth();
+  const { user, organization, logout, switchOrg } = useAuth();
   const location = useLocation();
 
   const isEnterpriseAdmin = user?.role === 'enterprise_admin';
+
+  const { data: orgs } = useQuery({
+    queryKey: ['organizations'],
+    queryFn: () => axios.get('/api/auth/organizations').then(r => r.data),
+    enabled: isEnterpriseAdmin
+  });
 
   const menuItems = [
     { icon: LayoutDashboard, label: 'Dashboard', path: '/app' },
@@ -64,12 +72,30 @@ const Sidebar = () => {
       {/* Org / Role badge */}
       <div className="px-4 pt-4">
         {isEnterpriseAdmin ? (
-          <div className="flex items-center gap-2.5 p-2.5 bg-amber-500/10 border border-amber-500/20 rounded-xl">
-            <Crown size={14} className="text-amber-400 flex-shrink-0" />
-            <div className="min-w-0">
-              <p className="text-[10px] font-black uppercase tracking-widest text-amber-400/70">Access Level</p>
-              <p className="text-xs font-black text-amber-300 truncate">Enterprise Global</p>
+          <div className="flex flex-col gap-2 p-2.5 bg-amber-500/10 border border-amber-500/20 rounded-xl">
+            <div className="flex items-center gap-2.5">
+              <Crown size={14} className="text-amber-400 flex-shrink-0" />
+              <div className="min-w-0">
+                <p className="text-[10px] font-black uppercase tracking-widest text-amber-400/70">Access Level</p>
+                <p className="text-xs font-black text-amber-300 truncate">Enterprise Global</p>
+              </div>
             </div>
+            <select
+              value={organization?.schema_name || ''}
+              onChange={(e) => {
+                const org = orgs?.find((o: any) => o.schema_name === e.target.value);
+                if (org) {
+                  switchOrg(org);
+                  window.location.reload();
+                }
+              }}
+              className="w-full bg-slate-800 border border-amber-500/30 rounded-lg px-2 py-1 text-amber-300 text-[10px] font-black appearance-none focus:outline-none focus:border-amber-500 cursor-pointer mt-1"
+            >
+              <option value="">Select Organization...</option>
+              {orgs?.map((o: any) => (
+                <option key={o.schema_name} value={o.schema_name}>{o.name}</option>
+              ))}
+            </select>
           </div>
         ) : (
           <div className="flex items-center gap-2.5 p-2.5 bg-slate-800/50 border border-slate-700 rounded-xl">
